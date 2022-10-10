@@ -1,0 +1,7 @@
+setuptools
+gym==0.21.0
+sb3-contrib==1.5.0
+importlib-metadata==4.8.1
+stable-baselines3==1.5.0
+torch
+tensorboard
