@@ -142,13 +142,13 @@ class HighwayEnvFast(HighwayEnv):
             if vehicle not in self.controlled_vehicles:
                 vehicle.check_collisions = False
 
-class HighwayEnvObstacle(HighwayEnv):
+class HighwayEnvObstacle(HighwayEnvFast):
 
     @classmethod
     def default_config(cls) -> dict:
         conf = super().default_config()
         conf.update({
-            "obstacle_count": 200,
+            "obstacle_count": 20,
             # https://github.com/eleurent/highway-env/issues/35#issuecomment-1206427869
             "termination_agg_fn": 'any'
         })
