@@ -4,6 +4,7 @@ import itertools
 from typing import Tuple, Dict, Callable, List, Optional, Union, Sequence
 
 import numpy as np
+import math
 
 # Useful types
 Vector = Union[np.ndarray, Sequence[float]]
@@ -372,3 +373,9 @@ def solve_trinom(a, b, c):
         return (-b - np.sqrt(delta)) / (2 * a), (-b + np.sqrt(delta)) / (2 * a)
     else:
         return None, None
+
+def relative_distance(x_1: float, y_1: float, x_2: float, y_2: float):
+    """
+    Calculate the re distance between the segment [x_1, y_1] and [x_2, y_2]
+    """
+    return math.sqrt((x_1 - x_2)**2 + (y_1 - y_2)**2)
