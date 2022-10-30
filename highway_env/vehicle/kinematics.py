@@ -213,3 +213,8 @@ class Vehicle(RoadObject):
 
     def __repr__(self):
         return self.__str__()
+    
+    def _get_vehicle_id(self):
+        return {id(self)}
+    
+

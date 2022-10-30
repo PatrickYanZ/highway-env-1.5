@@ -11,6 +11,7 @@ from highway_env.vehicle.kinematics import Vehicle
 
 from typing import Dict, Text
 from highway_env.vehicle.objects import Obstacle
+from highway_env.vehicle.objects import RF_BS
 
 Observation = np.ndarray
 
@@ -45,6 +46,7 @@ class HighwayEnv(AbstractEnv):
             "high_speed_reward": 0.4,  # The reward received when driving at full speed, linearly mapped to zero for
                                        # lower speeds according to config["reward_speed_range"].
             "lane_change_reward": 0,   # The reward received at each lane change action.
+            "rf_reward":1,
             "dr_reward": 0.2,
             "ho_reward":-0.2,
             "reward_speed_range": [20, 30],
@@ -275,7 +277,9 @@ class HighwayEnvBS(HighwayEnvFast):
         conf.update({
             "obstacle_count": 20,
             # https://github.com/eleurent/highway-env/issues/35#issuecomment-1206427869
-            "termination_agg_fn": 'any'
+            "termination_agg_fn": 'any',
+            'rf_bs_count':20,
+            'thz_bs_count':100
         })
         return conf
 
@@ -325,6 +329,11 @@ class HighwayEnvBS(HighwayEnvFast):
             obstacle_dist = np.random.randint(300, 10000)
             # print('obstacle_dist is ', obstacle_dist) #debug
             self.road.objects.append(Obstacle(self.road, [obstacle_dist, obstacle_lane]))
+        
+        for i in range(1, self.config['rf_bs_count']):
+            rf_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
+            rf_bs_dist = np.random.randint(300, 10000)
+            self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
 
     def _info(self, obs: np.ndarray, action: int) -> dict:
         info = super()._info(obs, action)
@@ -378,8 +387,11 @@ class HighwayEnvBS(HighwayEnvFast):
                                 [self.config["collision_reward"],
                                  self.config["high_speed_reward"] + self.config["right_lane_reward"]],
                                 [0, 1])
+        reward += rewards['rf_reward']
         reward *= rewards['on_road_reward']
         return reward
+
+
 
     def _agent_rewards(self, action: int, vehicle: Vehicle) -> Dict[Text, float]:
         """Per-agent per-objective reward signal."""
@@ -389,11 +401,15 @@ class HighwayEnvBS(HighwayEnvFast):
         # Use forward speed rather than speed, see https://github.com/eleurent/highway-env/issues/268
         forward_speed = vehicle.speed * np.cos(vehicle.heading)
         scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
+        distance_matrix = HighwayEnvBS._get_distance_rf_matrix(self)
+        nearst_rf_bs_distance = min(distance_matrix[vehicle._get_vehicle_id])
+
         return {
             "collision_reward": float(vehicle.crashed),
             "right_lane_reward": lane / max(len(neighbours) - 1, 1),
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
-            "on_road_reward": float(vehicle.on_road)
+            "on_road_reward": float(vehicle.on_road),
+            "rf_reward": np.clip(nearst_rf_bs_distance, 0, 1) 
         }
 
     def _get_distance_rf_matrix(self):
@@ -402,12 +418,24 @@ class HighwayEnvBS(HighwayEnvFast):
         '''
         bss = self.road.objects
         vehicles = self.road.vehicles
-        for bs in bss:
-            x1,y1 = bs.position
-            for vehicle in vehicles:
-                x2,y2 = vehicle.position
+        distance_matrix = dict()
+        # for bs in bss:
+        #     x1,y1 = bs.position
+        #     for vehicle in vehicles:
+        #         x2,y2 = vehicle.position
+        #         distance = utils.relative_distance(x1,x2,y1,y2)
+        #         distance_matrix[bs._id][vehicle._id] = distance
+        #         print("entry is ",bs._id,vehicle._id,distance)
+
+        for vehicle in vehicles:
+            x2,y2 = vehicle.position
+            for bs in bss:
+                x1,y1 = bs.position
                 distance = utils.relative_distance(x1,x2,y1,y2)
-        return distance
+                distance_matrix[vehicle._get_vehicle_id][bs._get_rf_bs_id] = distance
+                print("entry is ",vehicle._get_vehicle_id,bs._get_rf_bs_id,distance)
+        return distance_matrix
+
 
     def _get_distance_thz_matrix():
         '''

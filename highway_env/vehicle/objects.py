@@ -177,6 +177,9 @@ class RoadObject(ABC):
     def __repr__(self):
         return self.__str__()
 
+    def _get_rf_bs_id(self):
+        return {id(self) % 1000}
+
 
 class Obstacle(RoadObject):
 
@@ -195,3 +198,11 @@ class Landmark(RoadObject):
         super().__init__(road, position, heading, speed)
         self.solid = False
 
+
+class RF_BS(RoadObject):
+
+    """Landmarks of certain areas on the road that must be reached."""
+
+    def __init__(self, road, position: Sequence[float], heading: float = 0, speed: float = 0):
+        super().__init__(road, position, heading, speed)
+        self.solid = True
