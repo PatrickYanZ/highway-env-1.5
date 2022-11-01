@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Sequence, Tuple, TYPE_CHECKING, Optional
 import numpy as np
-
+import re
 from highway_env import utils
 
 if TYPE_CHECKING:
@@ -178,7 +178,10 @@ class RoadObject(ABC):
         return self.__str__()
 
     def _get_rf_bs_id(self):
-        return {id(self) % 1000}
+        test_str = RoadObject.__str__(self)
+        m = re.search(r'\#(.*?)\:', test_str).group(1)
+        m = "rb" + str(m)
+        return m
 
 
 class Obstacle(RoadObject):

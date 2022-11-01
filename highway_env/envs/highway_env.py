@@ -13,6 +13,9 @@ from typing import Dict, Text
 from highway_env.vehicle.objects import Obstacle
 from highway_env.vehicle.objects import RF_BS
 
+from ..sinr import *
+import pandas as pd
+
 Observation = np.ndarray
 
 class HighwayEnv(AbstractEnv):
@@ -333,7 +336,8 @@ class HighwayEnvBS(HighwayEnvFast):
         for i in range(1, self.config['rf_bs_count']):
             rf_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
             rf_bs_dist = np.random.randint(300, 10000)
-            self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+            # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+            self.road.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
 
     def _info(self, obs: np.ndarray, action: int) -> dict:
         info = super()._info(obs, action)
@@ -401,39 +405,103 @@ class HighwayEnvBS(HighwayEnvFast):
         # Use forward speed rather than speed, see https://github.com/eleurent/highway-env/issues/268
         forward_speed = vehicle.speed * np.cos(vehicle.heading)
         scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
-        distance_matrix = HighwayEnvBS._get_distance_rf_matrix(self)
-        nearst_rf_bs_distance = min(distance_matrix[vehicle._get_vehicle_id])
+        distance_matrix, vehicles,bss = HighwayEnvBS._get_distance_rf_matrix(self)
+        print(distance_matrix)
+        vid = vehicle._get_vehicle_id()
+        result = distance_matrix.loc[vid]
+        print("result is ",type(result),result)
+        nearst_bs_id,nearst_rf_bs_distance = HighwayEnvBS._get_min_bs(result) # min(distance_matrix["v"+str(vid)])
 
+        rf_sinr = rf_sinr_matrix(distance_matrix,vehicles,bss)
+        vid = vehicle._get_vehicle_id()
         return {
             "collision_reward": float(vehicle.crashed),
             "right_lane_reward": lane / max(len(neighbours) - 1, 1),
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "on_road_reward": float(vehicle.on_road),
-            "rf_reward": np.clip(nearst_rf_bs_distance, 0, 1) 
+            "rf_reward": float(1/nearst_rf_bs_distance)
+            # "rf_reward": float(1/rf_sinr_specific_vehicle)
         }
+
+    def _get_min_bs(ser):
+        '''
+        Input
+        rb448    2486.719716
+        rb496    4441.200057
+        rb544    1544.227621
+        rb592    6483.191725
+        rb640    9397.511902
+        rb504    4013.541322
+        rb552    6649.137008
+        rb184    7769.828695
+        rb136    2415.887817
+        rb88     8791.616117
+        rb40     7742.835072
+        rb992    8767.620541
+        rb896    3340.255970
+        rb352    4663.047710
+        rb304    2038.979633
+        rb256    4400.229874
+        rb208    2968.789306
+        rb160    6204.290285
+        rb112    2258.299791
+
+        return rb544, 1544.227621
+
+        '''
+        bs_name = ser.idxmin()
+        min_rate = np.min(ser)
+        print("bs name and min rate",bs_name,min_rate)
+        return bs_name,min_rate
 
     def _get_distance_rf_matrix(self):
         '''
         distance matrice between AVs and RF BSs.
         '''
-        bss = self.road.objects
+        bss = self.road.rf_bss
         vehicles = self.road.vehicles
-        distance_matrix = dict()
-        # for bs in bss:
-        #     x1,y1 = bs.position
-        #     for vehicle in vehicles:
-        #         x2,y2 = vehicle.position
-        #         distance = utils.relative_distance(x1,x2,y1,y2)
-        #         distance_matrix[bs._id][vehicle._id] = distance
-        #         print("entry is ",bs._id,vehicle._id,distance)
+        distance_matrix = pd.DataFrame() 
 
-        for vehicle in vehicles:
-            x2,y2 = vehicle.position
+        vehicle_list = []
+        bs_list = []
+
+        for v in vehicles:
+            x2,y2 = v.position
+            vid = v._get_vehicle_id()
+            # vid_str = "v" + str(vid)
+            vehicle_list.append(vid)
+            # distance_matrix[vid_str] = []
+            bs_list = []
             for bs in bss:
                 x1,y1 = bs.position
                 distance = utils.relative_distance(x1,x2,y1,y2)
-                distance_matrix[vehicle._get_vehicle_id][bs._get_rf_bs_id] = distance
-                print("entry is ",vehicle._get_vehicle_id,bs._get_rf_bs_id,distance)
+                bid = bs._get_rf_bs_id()
+                bs_list.append(bid)
+                distance_matrix.at[vid,bid]=distance
+
+            
+        # print(distance_matrix)
+        return distance_matrix,vehicle_list,bs_list
+
+    def _get_sinr_rf_matrix(self):
+        '''
+        distance matrice between AVs and RF BSs.
+        '''
+        bss = self.road.rf_bss
+        vehicles = self.road.vehicles
+        distance_matrix = {} #dict()
+
+
+        for v in vehicles:
+            x2,y2 = v.position
+            vid = int(v._get_vehicle_id())
+            distance_matrix[vid] = {}
+            for bs in bss:
+                x1,y1 = bs.position
+                distance = utils.relative_distance(x1,x2,y1,y2)
+                bid = int(bs._get_rf_bs_id())
+                distance_matrix[vid][bid] = distance
+                # print("vehicle is is ",vid,"rf bs id is",bid,'relative distance is ',distance)
         return distance_matrix
 
 

@@ -8,6 +8,7 @@ from highway_env.road.road import Road, LaneIndex
 from highway_env.vehicle.objects import RoadObject, Obstacle, Landmark
 from highway_env.utils import Vector
 
+import re
 
 class Vehicle(RoadObject):
 
@@ -215,6 +216,9 @@ class Vehicle(RoadObject):
         return self.__str__()
     
     def _get_vehicle_id(self):
-        return {id(self)}
+        test_str = Vehicle.__str__(self)
+        m = re.search(r'\#(.*?)\:', test_str).group(1)
+        m = "v" + m
+        return m
     
 
