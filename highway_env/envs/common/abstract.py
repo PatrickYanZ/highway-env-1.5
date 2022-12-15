@@ -6,6 +6,7 @@ from gym import Wrapper
 from gym.wrappers import RecordVideo
 from gym.utils import seeding
 import numpy as np
+import pandas as pd
 
 from highway_env import utils
 from highway_env.envs.common.action import action_factory, Action, DiscreteMetaAction, ActionType
@@ -49,6 +50,16 @@ class AbstractEnv(gym.Env):
         # Scene
         self.road = None
         self.controlled_vehicles = []
+
+        # Bss
+        self.rf_bss = []
+        self.thz_bss = []
+
+        # BS assignment table
+        self.bs_assignment_table = pd.DataFrame()
+
+        # BS performance table
+        self.bs_performance_table = pd.DataFrame()
 
         # Spaces
         self.action_type = None

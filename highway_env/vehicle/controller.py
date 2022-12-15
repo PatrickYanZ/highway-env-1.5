@@ -8,6 +8,7 @@ from highway_env.utils import Vector
 from highway_env.vehicle.kinematics import Vehicle
 
 
+
 class ControlledVehicle(Vehicle):
     """
     A vehicle piloted by two low-level controller, allowing high-level actions such as cruise control and lane changes.
@@ -38,11 +39,14 @@ class ControlledVehicle(Vehicle):
                  speed: float = 0,
                  target_lane_index: LaneIndex = None,
                  target_speed: float = None,
+                 target_prev_bs: str = None,
+                 target_current_bs: str = None,
                  route: Route = None):
         super().__init__(road, position, heading, speed)
         self.target_lane_index = target_lane_index or self.lane_index
         self.target_speed = target_speed or self.speed
         self.route = route
+        self.target_current_bs = target_prev_bs or 'initial bs'
 
     @classmethod
     def create_from(cls, vehicle: "ControlledVehicle") -> "ControlledVehicle":
@@ -85,6 +89,14 @@ class ControlledVehicle(Vehicle):
         :param action: a high-level action
         """
         self.follow_road()
+        print(action)
+        tele_flag = False
+        if(bool(action)==True):
+            print(action)
+            action = action[0] #tran action
+            action_tele = action[1]
+            tele_flag = True
+
         if action == "FASTER":
             self.target_speed += self.DELTA_SPEED
         elif action == "SLOWER":
@@ -100,8 +112,25 @@ class ControlledVehicle(Vehicle):
             if self.road.network.get_lane(target_lane_index).is_reachable_from(self.position):
                 self.target_lane_index = target_lane_index
 
+        if(tele_flag):
+            if action_tele  == "BS1":
+                self.target_prev_bs = "BS1"
+                self.target_current_bs = "BS1"
+
+            elif action_tele  == "BS2":
+                self.target_prev_bs = "BS2"
+                self.target_current_bs = "BS2"
+            elif action_tele == "BS3":
+                self.target_prev_bs = "BS3"
+                self.target_current_bs = "BS3"
+            else :
+                self.target_prev_bs = "error_bs"
+                self.target_current_bs = "error_bs"
+
+
         action = {"steering": self.steering_control(self.target_lane_index),
-                  "acceleration": self.speed_control(self.target_speed)}
+                  "acceleration": self.speed_control(self.target_speed),
+                  "tele_action":self.target_current_bs}
         action['steering'] = np.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         super().act(action)
 
@@ -112,6 +141,33 @@ class ControlledVehicle(Vehicle):
                                                                  route=self.route,
                                                                  position=self.position,
                                                                  np_random=self.road.np_random)
+    def t1_dr_control (self):
+        '''
+        Input T1
+        Find the dr table
+        connect with the maximum data rate BS under the BS capacity. 
+        If exceed the BS capacity, connect to the second maximum data rate BS.
+        '''
+        'tele action: dr only'
+        distance_matrix_rf, vehicles,bss_rf = HighwayEnvBS._get_distance_rf_matrix(self)
+        # UNIMPLEMENTED
+        distance_matrix_thz, vehicles,bss_thz = HighwayEnvBS._get_distance_thz_matrix(self)
+
+        return 0
+    
+    def t2_with_threshold_control(self):
+        '''
+        tele action:
+        with bs threshold only 
+        '''
+        return 0
+
+    def t3_with_ho_threshold_control(self):
+        '''
+        tele action:
+        with bs threshold  and ho penalty
+        '''
+        return 0
 
     def steering_control(self, target_lane_index: LaneIndex) -> float:
         """
@@ -213,7 +269,9 @@ class MDPVehicle(ControlledVehicle):
                  target_lane_index: Optional[LaneIndex] = None,
                  target_speed: Optional[float] = None,
                  target_speeds: Optional[Vector] = None,
+                 target_current_bs: Optional[str]= None,
                  route: Optional[Route] = None) -> None:
+                 
         """
         Initializes an MDPVehicle
 

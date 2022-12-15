@@ -183,6 +183,12 @@ class RoadObject(ABC):
         m = "rb" + str(m)
         return m
 
+    def _get_thz_bs_id(self):
+        test_str = RoadObject.__str__(self)
+        m = re.search(r'\#(.*?)\:', test_str).group(1)
+        m = "tb" + str(m)
+        return m
+
 
 class Obstacle(RoadObject):
 
@@ -203,6 +209,14 @@ class Landmark(RoadObject):
 
 
 class RF_BS(RoadObject):
+
+    """RF BSs of certain areas on the road that must be reached."""
+
+    def __init__(self, road, position: Sequence[float], heading: float = 0, speed: float = 0):
+        super().__init__(road, position, heading, speed)
+        self.solid = True
+
+class THz_BS(RoadObject):
 
     """Landmarks of certain areas on the road that must be reached."""
 

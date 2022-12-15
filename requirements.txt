@@ -5,3 +5,4 @@ importlib-metadata==4.8.1
 stable-baselines3==1.5.0
 torch
 tensorboard
+scipy

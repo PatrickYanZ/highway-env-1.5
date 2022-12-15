@@ -227,6 +227,72 @@ class DiscreteMetaAction(ActionType):
     def act(self, action: int) -> None:
         self.controlled_vehicle.act(self.actions[action])
 
+class DiscreteDualObjectMetaAction(ActionType):
+
+    """
+    An discrete action space of meta-actions: lane changes, and cruise control set-point.
+    """
+
+    ACTIONS_ALL = {
+        0: ['LANE_LEFT','bs1'],
+        1: ['IDLE','bs2'],
+        2: ['LANE_RIGHT','bs3'],
+        3: ['FASTER','bs4'],
+        4: ['SLOWER','bs5']
+    }
+    """A mapping of action indexes to labels."""
+
+    ACTIONS_LONGI = {
+        0: ['SLOWER','bs1'],
+        1: ['IDLE','bs2'],
+        2: ['FASTER','bs3']
+    }
+    """A mapping of longitudinal action indexes to labels."""
+
+    ACTIONS_LAT = {
+        0: ['LANE_LEFT','bs1'],
+        1: ['IDLE','bs2'],
+        2: ['LANE_RIGHT','bs3'],
+    }
+    """A mapping of lateral action indexes to labels."""
+
+    def __init__(self,
+                 env: 'AbstractEnv',
+                 longitudinal: bool = True,
+                 lateral: bool = True,
+                 target_speeds: Optional[Vector] = None,
+                 **kwargs) -> None:
+        """
+        Create a discrete action space of meta-actions.
+
+        :param env: the environment
+        :param longitudinal: include longitudinal actions
+        :param lateral: include lateral actions
+        :param target_speeds: the list of speeds the vehicle is able to track
+        """
+        super().__init__(env)
+        self.longitudinal = longitudinal
+        self.lateral = lateral
+        self.target_speeds = np.array(target_speeds) if target_speeds is not None else MDPVehicle.DEFAULT_TARGET_SPEEDS
+        self.actions = self.ACTIONS_ALL if longitudinal and lateral \
+            else self.ACTIONS_LONGI if longitudinal \
+            else self.ACTIONS_LAT if lateral \
+            else None
+        if self.actions is None:
+            raise ValueError("At least longitudinal or lateral actions must be included")
+        self.actions_indexes = {v[0]: k for k, v in self.actions.items()}
+        self
+
+    def space(self) -> spaces.Space:
+        return spaces.Discrete(len(self.actions))
+
+    @property
+    def vehicle_class(self) -> Callable:
+        return functools.partial(MDPVehicle, target_speeds=self.target_speeds)
+
+    def act(self, action: int) -> None:
+        self.controlled_vehicle.act(self.actions[action])#self.controlled_vehicle.act(self.actions[action][0])
+
 
 class MultiAgentAction(ActionType):
     def __init__(self,
@@ -263,5 +329,7 @@ def action_factory(env: 'AbstractEnv', config: dict) -> ActionType:
         return DiscreteMetaAction(env, **config)
     elif config["type"] == "MultiAgentAction":
         return MultiAgentAction(env, **config)
+    elif config["type"] == "DiscreteDualObjectMetaAction":
+        return DiscreteDualObjectMetaAction(env, **config)
     else:
         raise ValueError("Unknown action type")

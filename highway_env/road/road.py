@@ -289,6 +289,7 @@ class Road(object):
                  vehicles: List['kinematics.Vehicle'] = None,
                  road_objects: List['objects.RoadObject'] = None,
                  road_rfs: List['objects.RF_BS'] = None,
+                 road_thzs: List['objects.THz_BS'] = None,
                  np_random: np.random.RandomState = None,
                  record_history: bool = False) -> None:
         """
@@ -304,6 +305,7 @@ class Road(object):
         self.vehicles = vehicles or []
         self.objects = road_objects or []
         self.rf_bss = road_rfs or []
+        self.thz_bss = road_thzs or []
         self.np_random = np_random if np_random else np.random.RandomState()
         self.record_history = record_history
 

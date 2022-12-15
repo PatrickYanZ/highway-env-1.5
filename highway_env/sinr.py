@@ -3,7 +3,9 @@ import math
 import numpy as np
 import pandas as pd
 from scipy.linalg import fractional_matrix_power
+from scipy import linalg
 import numpy.matlib
+import random
 
 pi = math.pi
 
@@ -39,11 +41,12 @@ lambdas=10#;
 
 ## ===================== Rate and SINR theshold calculation ========================================
 arr_num = [0] * 5
-print(arr_num)
+# print(arr_num)
 
 Rate = 5e9 
 Wt=5e8
 Wr=40e6
+NP = 10e-10
 #SINRthRF =2.^(Rate./(Wr))-1 #%thresholds
 #SINRthTH =2.^(Rate./(Wt))-1
 
@@ -84,6 +87,7 @@ def rf_sinr_matrix(distance_matrix,vehicles,bss):
     fadeRand = generate_exponential_matrix(1,NRF,NU)
 
     #signal matrix for RF
+    # SRF = gammaI*fadeRand*PR*d_matrix
     SRF = np.dot(gammaI,fadeRand)
     SRF = np.dot(SRF,PR)
     SRF = np.dot(SRF,d_matrix)
@@ -105,11 +109,153 @@ def rf_sinr_matrix(distance_matrix,vehicles,bss):
     ## column row names should be recovered ### 
     # print(distance_matrix) 
     # print(d_matrix)
-    print(RPrAllu1)
-    print('vehicle list is ', vehicles,)
-    print('bs_list is',bss)
+    # print(RPrAllu1)
+    # print('vehicle list is ', vehicles,)
+    # print('bs_list is',bss)
 
     df = pd.DataFrame(RPrAllu1 , columns = vehicles, index = bss)
-    print(df)
+    # print(df)
 
+    return df
+
+def getInterf(sinr_matrix):
+    
+    '''
+    #axis=1 specifies that the sum will be done on the rows.
+    # Suppose the vehicle can connect with one bs with maximum SINR
+    # The interference is the sum of all SIMR for one vihele deduct the maximum SINR
+    '''
+    intf = sinr_matrix
+    intf["Interference"] = intf.sum(axis=1) - intf.max(axis=1)
+    intf1 = intf[['Interference']]
+    return intf1
+
+def get_signal_rf(distance_matrix,vehicles,bss):
+    '''
+    # seperate these two base station list 
+    # substitude the dimension of NRF(number of Rf base station) number of vihicle seperate
+    # For Data Hertz
+    # No fading in THz BSs
+    '''
+
+
+    #fadeRand = exprnd(1,NRF,UoI);
+    # cars_db_path = "E:/research/trafficModel-master/2021_05_27_23_27_output.csv"
+    # car_db_obj = pd.read_csv(cars_db_path) #read car database
+    # df_rsdb = pd.read_csv("RFBSDB.csv")
+
+    NOV,NRF = distance_matrix.shape
+    # NRF = df_rsdb['bs_id'].size
+    # print("NRF is",NRF)
+    # NOV = df_cars_row_count
+    # print("NOV is",NOV)
+
+    # print("faderand")
+    # fadeRand = random.exponential(scale=1, size=(NOV,NRF)) # this number of Rf base station, number of vehicles.
+    fadeRand = generate_exponential_matrix(1,NOV,NRF)
+    # print(fadeRand)
+    # print(len(fadeRand), len(fadeRand[0]))
+
+    #fadeRand = random.exponential(scale=1)
+    # print("SRF here")
+    SRF = np.multiply(gammaI,fadeRand)
+    # print(len(SRF), len(SRF[0]))
+    #SRF = np.multiply(SRF,PR)  
+
+    #SRF = gammaI * fadeRand *PR
+    # print("srf",SRF)
+    #matrix = getDIstanceMatrix("E:/research/trafficModel-master/result/2021_06_01_14_35_11.csv","E:/research/trafficModel-master/BSDB.csv")
+    # matrix = getDIstanceMatrix(cars_db_path,"E:/research/trafficModel-master/RFBSDB.csv")
+    matrix = np.array(distance_matrix)
+    # matrix = np.array(distance_matrix)
+
+    # print("distance matrix")
+    # print(matrix)
+
+    # matrix = matrix.power(-alpha)
+    matrix = np.power(matrix,-alpha)
+   # print(len(matrix), len(matrix[0]))
+    #2021_05_27_23_27_output E:\research\trafficModel-master\2021_05_27_23_27_output.csv
+    #SRF = np.multiply(SRF,D_ue_Rbs) 
+    #matrix.mul(SRF)
+    matrix = np.multiply(matrix,SRF)#matrix * SRF  signal/power
+
+    # return matrix
+    # print('get distance matrix shape ',distance_matrix.shape,'get rf matrix shape ',matrix.shape)
+    df = pd.DataFrame(matrix , columns = bss, index = vehicles)
+    return df
+
+def get_signal_thz(distance_matrix_thz,vehicles,bss_thz):
+    '''
+    # seperate these two base station list 
+    # substitude the dimension of NRF(number of Rf base station) number of vihicle seperate
+    # For Data Hertz
+    # No fading in THz BSs
+    '''
+
+    NOV,NThz = distance_matrix_thz.shape
+
+    fadeRand1 = generate_exponential_matrix(1,NOV,NThz)
+
+    STHz = np.multiply(gammaII,fadeRand1)
+    STHz = np.multiply(STHz,PT)
+
+    matrix = np.array(distance_matrix_thz)
+    matrix = np.power(matrix,-kf)
+    # matrix = linalg.expm(matrix) # exponential matrix https://www.tutorialspoint.com/python-scipy-linalg-expm
+    matrix = np.exp(matrix)
+
+    STHz = np.multiply(STHz,matrix)
+
+    temp_dis_matrix = distance_matrix_thz **2 #fractional_matrix_power(distance_matrix_thz,2)
+    STHz = np.divide(STHz,temp_dis_matrix)
+    matrix = STHz
+    df = pd.DataFrame(matrix , columns = bss_thz, index = vehicles)
+    return df
+
+def getSINR(signal_matrix,Interf):
+    # rows_num =  len(signal_matrix)
+    cols_num = len(signal_matrix.columns)
+
+    for i in range(cols_num-1) :
+        tem_col_name = 'col_' +str(i)
+        Interf[tem_col_name]=Interf['Interference']
+        # Interf.loc[Interf[tem_col_name]]=Interf['Interference']
+
+    sinr_rf = np.divide(signal_matrix,Interf) 
+    sinr_rf = sinr_rf.drop(['Interference'], axis=1)
+  
+    # print(signal_matrix.shape)
+    return(sinr_rf)
+
+def get_rf_sinr(distance_matrix,vehicles,bss):
+    signal_matrix_rf = get_signal_rf(distance_matrix,vehicles,bss)
+    interf_rf = getInterf(signal_matrix_rf)
+    sinr_rf = getSINR(signal_matrix_rf,interf_rf)
+    # df = pd.DataFrame(sinr_rf , columns = bss, index = vehicles)
+   
+    return sinr_rf,interf_rf
+
+
+def get_thz_sinr(distance_matrix,vehicles,bss):
+    signal_matrix_thz = get_signal_thz(distance_matrix,vehicles,bss)
+    interf_thz = getInterf(signal_matrix_thz)
+    sinr_thz = getSINR(signal_matrix_thz,interf_thz)
+    # df = pd.DataFrame(sinr_rf , columns = bss, index = vehicles)
+    return sinr_thz,interf_thz
+
+def get_rf_dr(distance_matrix,vehicles,bss):
+    sinr_rf,interf_rf = get_rf_sinr(distance_matrix,vehicles,bss)
+    # RPrAllu1 = Wr * np.log2(np.add(1,np.divide(sinr_rf,np.add(NP, interf_rf))))
+    RPrAllu1 = Wr * np.log2(1 + (sinr_rf / (NP+interf_rf)))
+    df = pd.DataFrame(RPrAllu1 , columns = bss, index = vehicles)
+    # RPrAllu1 = Wr * log2(1+SRF./(NP+interf));
+    return df
+
+def get_thz_dr(distance_matrix,vehicles,bss):
+    sinr_thz,interf_thz = get_thz_sinr(distance_matrix,vehicles,bss)
+    # RPrAllu1 = Wr * np.log2(np.add(1,np.divide(sinr_rf,np.add(NP, interf_rf))))
+    TPrAllu1 = Wt * np.log2(1 + (sinr_thz / (NP+interf_thz)))
+    df = pd.DataFrame(TPrAllu1 , columns = bss, index = vehicles)
+    # RPrAllu1 = Wr * log2(1+SRF./(NP+interf));
     return df
