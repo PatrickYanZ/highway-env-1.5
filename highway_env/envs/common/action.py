@@ -234,25 +234,47 @@ class DiscreteDualObjectMetaAction(ActionType):
     """
 
     ACTIONS_ALL = {
-        0: ['LANE_LEFT','bs1'],
-        1: ['IDLE','bs2'],
-        2: ['LANE_RIGHT','bs3'],
-        3: ['FASTER','bs4'],
-        4: ['SLOWER','bs5']
+        0: ['LANE_LEFT','t1'],
+        1: ['IDLE','t1'],
+        2: ['LANE_RIGHT','t1'],
+        3: ['FASTER','t1'],
+        4: ['SLOWER','t1'],
+        5: ['LANE_LEFT','t2'],
+        6: ['IDLE','t2'],
+        7: ['LANE_RIGHT','t2'],
+        8: ['FASTER','t2'],
+        9: ['SLOWER','t2'],
+        10: ['LANE_LEFT','t3'],
+        11: ['IDLE','t3'],
+        12: ['LANE_RIGHT','t3'],
+        13: ['FASTER','t3'],
+        14: ['SLOWER','t3'],
     }
     """A mapping of action indexes to labels."""
 
     ACTIONS_LONGI = {
-        0: ['SLOWER','bs1'],
-        1: ['IDLE','bs2'],
-        2: ['FASTER','bs3']
+        0: ['SLOWER','t1'],
+        1: ['IDLE','t1'],
+        2: ['FASTER','t1'],
+        3: ['SLOWER','t2'],
+        4: ['IDLE','t2'],
+        5: ['FASTER','t2'],
+        6: ['SLOWER','t3'],
+        7: ['IDLE','t3'],
+        8: ['FASTER','t3']
     }
     """A mapping of longitudinal action indexes to labels."""
 
     ACTIONS_LAT = {
-        0: ['LANE_LEFT','bs1'],
-        1: ['IDLE','bs2'],
-        2: ['LANE_RIGHT','bs3'],
+        0: ['LANE_LEFT','t1'],
+        1: ['IDLE','t1'],
+        2: ['LANE_RIGHT','t1'],
+        3: ['LANE_LEFT','t2'],
+        4: ['IDLE','t2'],
+        5: ['LANE_RIGHT','t2'],
+        6: ['LANE_LEFT','t3'],
+        7: ['IDLE','t3'],
+        8: ['LANE_RIGHT','t3'],
     }
     """A mapping of lateral action indexes to labels."""
 
@@ -278,10 +300,10 @@ class DiscreteDualObjectMetaAction(ActionType):
             else self.ACTIONS_LONGI if longitudinal \
             else self.ACTIONS_LAT if lateral \
             else None
+        print(self.actions)
         if self.actions is None:
             raise ValueError("At least longitudinal or lateral actions must be included")
         self.actions_indexes = {v[0]: k for k, v in self.actions.items()}
-        self
 
     def space(self) -> spaces.Space:
         return spaces.Discrete(len(self.actions))
