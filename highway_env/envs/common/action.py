@@ -300,7 +300,7 @@ class DiscreteDualObjectMetaAction(ActionType):
             else self.ACTIONS_LONGI if longitudinal \
             else self.ACTIONS_LAT if lateral \
             else None
-        print(self.actions)
+        # print(self.actions)
         if self.actions is None:
             raise ValueError("At least longitudinal or lateral actions must be included")
         self.actions_indexes = {v[0]: k for k, v in self.actions.items()}

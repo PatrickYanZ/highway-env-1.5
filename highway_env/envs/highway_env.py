@@ -993,7 +993,7 @@ class HighwayEnvBS(HighwayEnvFast):
         try:
             result_rf = rf_dr.loc[vid] # current vehicle dr
         except:
-            result_rf = rf_dr.loc[vehicles[0]._get_vehicle_id()] # for safety purpose
+            result_rf = rf_dr.loc[vehicles[0]] # for safety purpose
             print(vid,' car not found', 'relocate to' ,vehicles[0] )
         # result_rf = rf_dr.loc[vid] # current vehicle dr
         result_thz = thz_dr.loc[vid]
