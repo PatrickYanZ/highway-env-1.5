@@ -124,7 +124,7 @@ def rf_sinr_matrix(distance_matrix,vehicles,bss):
     #power from all base-stations to all users
     NP=10e-10 #(10) ** (-10)
     RPrAllu1 = Wr * np.log2(np.add(1,np.divide(SRF,np.add(NP, interf))))
-    print(RPrAllu1)
+    # print(RPrAllu1)
     RPrAllu1 = np.transpose(RPrAllu1)
     interf=np.transpose(interf)
     # print(RPrAllu1.shape)
@@ -151,8 +151,8 @@ def thz_sinr_matrix(distance_matrix,vehicles,bss):
     """
     
     NU,NRF = distance_matrix.shape # row is vehicle, column is rf bs
-    print(distance_matrix)
-    print("distance_matrix.shape",NU,NRF )
+    # print(distance_matrix)
+    # print("distance_matrix.shape",NU,NRF )
     # NU = len(distance_matrix) 
     # NRF = len(distance_matrix[0])
 
@@ -195,8 +195,8 @@ def thz_sinr_matrix(distance_matrix,vehicles,bss):
     #power from all base-stations to all users
     NP=10e-10 #(10) ** (-10)
     RPrAllu1 = Wr * np.log2(np.add(1,np.divide(SRF,np.add(NP, interf))))
-    print(RPrAllu1)
-    print(RPrAllu1.shape)
+    # print(RPrAllu1)
+    # print(RPrAllu1.shape)
     RPrAllu1 = np.transpose(RPrAllu1)
     interf=np.transpose(interf)
     # print(RPrAllu1.shape)

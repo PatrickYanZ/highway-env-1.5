@@ -501,8 +501,8 @@ class HighwayEnvBS(HighwayEnvFast):
             self.road.thz_bss.append(THz_BS(self.road, [thz_bs_dist, thz_bs_lane]))
             self.shared_state.thz_bss.append(THz_BS(self.road, [rf_bs_dist, rf_bs_lane]))
 
-        print('self.shared_state.rf_bss\n',self.shared_state.rf_bss)
-        print('self.shared_state.thz_bss\n',self.shared_state.thz_bss)
+        # print('self.shared_state.rf_bss\n',self.shared_state.rf_bss)
+        # print('self.shared_state.thz_bss\n',self.shared_state.thz_bss)
     
     # def __init__(self: dict = None) -> None:
     #     # BS assignment table
@@ -690,8 +690,8 @@ class HighwayEnvBS(HighwayEnvFast):
         rf_dr,assignment_table = HighwayEnvBS.get_performance_assignment_tables(HighwayEnvBS)
         v_linkage = assignment_table.loc[vid]
         current_bs_linkage = v_linkage.idxmax()
-        print('target vehicle vid',vid)
-        print('v_linkage\n',v_linkage)
+        # print('target vehicle vid',vid)
+        # print('v_linkage\n',v_linkage)
 
 
         result_rf = rf_dr.loc[vid,current_bs_linkage] # current vehicle dr
@@ -993,7 +993,8 @@ class HighwayEnvBS(HighwayEnvFast):
         try:
             result_rf = rf_dr.loc[vid] # current vehicle dr
         except:
-            print(vid,' car not found')
+            result_rf = rf_dr.loc[vehicles[0]._get_vehicle_id()] # for safety purpose
+            print(vid,' car not found', 'relocate to' ,vehicles[0] )
         # result_rf = rf_dr.loc[vid] # current vehicle dr
         result_thz = thz_dr.loc[vid]
         # print("result rf\n",result_rf)
@@ -1115,7 +1116,7 @@ result	    -2	1	-1	1	2	3	0	0	2	1
         # print('tupple_rf',tupples_rf,len(tupples_rf))
         # print('current_users',current_users,len(current_users))
         result = np.subtract(tupples_rf,current_users)
-        print(' get_vacant_rf_bs_list result\n',result)
+        # print(' get_vacant_rf_bs_list result\n',result)
         return result
 
     def get_vacant_thz_bs_list(self):
@@ -1138,8 +1139,8 @@ result	    -2	1	-1	1	2	3	0	0	2	1
         return result
 
     def check_connect_with_bs(vacant_list,bs):
-        print("vacant_list\n",vacant_list)
-        print("bs\n",bs)
+        # print("vacant_list\n",vacant_list)
+        # print("bs\n",bs)
         num_vacant =  int(vacant_list.loc[bs])
 
         return (num_vacant > 0)
