@@ -9,12 +9,11 @@ from highway_env.vehicle.kinematics import Vehicle
 
 from highway_env.envs import highway_env
 from highway_env.envs.common import abstract
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from highway_env.envs.highway_env import HighwayEnvBS
-
 from ..sinr import *
+# from highway_env import HighwayEnvBS
 from ..Shared import *
+
+
 
 
 class ControlledVehicle(Vehicle):
@@ -47,11 +46,14 @@ class ControlledVehicle(Vehicle):
                  speed: float = 0,
                  target_lane_index: LaneIndex = None,
                  target_speed: float = None,
+                 target_prev_bs: str = None,
+                 target_current_bs: str = None,
                  route: Route = None):
         super().__init__(road, position, heading, speed)
         self.target_lane_index = target_lane_index or self.lane_index
         self.target_speed = target_speed or self.speed
         self.route = route
+        self.target_current_bs = target_prev_bs or 'initial bs'
 
     @classmethod
     def create_from(cls, vehicle: "ControlledVehicle") -> "ControlledVehicle":
@@ -94,6 +96,14 @@ class ControlledVehicle(Vehicle):
         :param action: a high-level action
         """
         self.follow_road()
+        # print(action)
+        tele_flag = False
+        if(bool(action)==True):
+            # print(action)
+            action = action[0] #tran action
+            action_tele = action[1]
+            tele_flag = True
+
         if action == "FASTER":
             self.target_speed += self.DELTA_SPEED
         elif action == "SLOWER":
@@ -109,8 +119,48 @@ class ControlledVehicle(Vehicle):
             if self.road.network.get_lane(target_lane_index).is_reachable_from(self.position):
                 self.target_lane_index = target_lane_index
 
+        if(tele_flag):
+            if action_tele  == "t1": # t1_dr_control
+                bsname , dr = ControlledVehicle.t1_dr_control(self)
+                # self.target_prev_bs = bsname
+                old = self.target_current_bs
+                new = bsname
+                # self.target_current_bs = bsname
+                vid = self._get_vehicle_id()
+                # update the sinr matrix
+                # if(old != new):
+                highway_env.HighwayEnvBS.shared_state.bs_assignment_table.loc[[vid],[old]] = 0
+                highway_env.HighwayEnvBS.shared_state.bs_assignment_table.loc[[vid],[new]] = 1
+
+            elif action_tele  == "t2":
+                bsname, dr = ControlledVehicle.t2_with_threshold_control(self)
+                old = self.target_current_bs
+                new = bsname
+                # if(old != new):
+                highway_env.HighwayEnvBS.shared_state.bs_assignment_table.loc[[vid],[old]] = 0
+                highway_env.HighwayEnvBS.shared_state.bs_assignment_table.loc[[vid],[new]] = 1
+
+                # self.target_prev_bs = "BS2"
+                # self.target_current_bs = "BS2"
+
+            elif action_tele == "t3":
+                bsname, dr = ControlledVehicle.t3_with_ho_threshold_control(self)
+                old = self.target_current_bs
+                new = bsname
+                # if(old != new):
+                highway_env.HighwayEnvBS.shared_state.bs_assignment_table.loc[[vid],[old]] = 0
+                highway_env.HighwayEnvBS.shared_state.bs_assignment_table.loc[[vid],[new]] = 1
+            else :
+                bsname, dr = ControlledVehicle.t1_dr_control(self)
+                self.target_prev_bs = bsname
+                self.target_current_bs = dr
+                # self.target_prev_bs = "error_bs"
+                # self.target_current_bs = "error_bs"
+
+
         action = {"steering": self.steering_control(self.target_lane_index),
-                  "acceleration": self.speed_control(self.target_speed)}
+                  "acceleration": self.speed_control(self.target_speed),
+                  "tele_action":self.target_current_bs}
         action['steering'] = np.clip(action['steering'], -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         super().act(action)
 
@@ -121,6 +171,139 @@ class ControlledVehicle(Vehicle):
                                                                  route=self.route,
                                                                  position=self.position,
                                                                  np_random=self.road.np_random)
+    def t1_dr_control (self):
+        '''
+        Input T1
+        Find the dr table
+        connect with the maximum data rate BS under the BS capacity. 
+        If exceed the BS capacity, connect to the second maximum data rate BS.
+
+        self is defined as current vehicle.
+
+        '''
+        'tele action: dr only'
+        # print("vid is ++++++++++",self._get_vehicle_id)
+        vid = self._get_vehicle_id()
+        # my_instance = highway_env.HighwayEnvBS()
+        # result_rf,result_thz = ControlledVehicle.get_rf_thz_info_for_specific_v(highway_env.HighwayEnvBS._get_bs_assignment_table(),self._get_vehicle_id())
+        result_rf,result_thz = highway_env.HighwayEnvBS.get_rf_thz_info_for_specific_v(self._get_vehicle_id())#SharedState.bs_performance_table,
+        # print("result rf+++++++++++++++++++++\n",result_rf)
+        # print("result rf",result_rf)
+        # print("result rf",result_thz)
+
+        # rbs_min_name,min_rate,rbs_max_name,max_rate_rf = highway_env.HighwayEnvBS._get__max_min_dr_bs(result_rf)
+        # tbs_min_name,min_rate,tbs_max_name,max_rate_thz = highway_env.HighwayEnvBS._get__max_min_dr_bs(result_thz)
+
+        # we recursive select the max rate from rf and thz only if base station are available.
+        rbs_max_name,max_rate_rf = highway_env.HighwayEnvBS.recursive_select_max_bs_rf(result_rf)
+
+        #temporary disable thz bs ######################################
+        # tbs_max_name,max_rate_thz = highway_env.HighwayEnvBS.recursive_select_max_bs_thz(result_thz) 
+
+        tbs_max_name,max_rate_thz = 0,0
+        # max_rate = np.max(result_rf)
+
+        
+
+        if (max_rate_rf > max_rate_thz):
+            return rbs_max_name,max_rate_rf
+        else:
+            return tbs_max_name,max_rate_thz
+
+    # def recursive_select_max_bs_rf(self,result_rf):
+    #     i = 0
+    #     # print("result rf\n",result_rf)
+    #     rf_vacant_list = highway_env.HighwayEnvBS.get_vacant_rf_bs_list(self)
+    #     bs_max_name = result_rf.idxmax()
+    #     length = result_rf.size 
+    #     while(i < length):
+    #         if highway_env.HighwayEnvBS.check_connect_with_bs(self,rf_vacant_list,bs_max_name):
+    #             rbs_max_name = result_rf.idxmax()
+    #             max_rate_rf = np.max(result_rf)
+    #             break
+    #         result_rf.drop(bs_max_name) # drop the maximum one due to limitation of capacity
+    #         bs_max_name = result_rf.idxmax()
+    #         i = i + 1
+    #     return rbs_max_name,max_rate_rf
+
+    # def recursive_select_max_bs_thz(self,result_thz):
+    #     i = 0
+    #     thz_vacant_list = highway_env.HighwayEnvBS.get_vacant_thz_bs_list(self)
+    #     bs_max_name = result_thz.idxmax()
+    #     length = result_thz.size 
+    #     while(i < length):
+    #         if highway_env.HighwayEnvBS.check_connect_with_bs(self,thz_vacant_list,bs_max_name):
+    #             tbs_max_name = result_thz.idxmax()
+    #             max_rate_thz = np.max(result_thz)
+    #             break
+    #         result_thz.drop(bs_max_name) # drop the maximum one due to limitation of capacity
+    #         bs_max_name = result_thz.idxmax()
+    #         i = i + 1
+    #     return tbs_max_name,max_rate_thz
+
+    # def get_rf_thz_info_for_specific_v(self,vid):
+    #     # vid = self._get_vehicle_id()
+    #     # print("vid",vid)
+    #     env = highway_env.HighwayEnvBS()
+    #     distance_matrix_rf, vehicles,bss_rf = highway_env.HighwayEnvBS._get_distance_rf_matrix(shared_state=SharedState)
+    #     distance_matrix_thz, vehicles,bss_thz = highway_env.HighwayEnvBS._get_distance_thz_matrix(shared_state=SharedState)
+    #     # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
+    #     rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
+    #     # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
+    #     thz_dr,thz_interf = thz_sinr_matrix(distance_matrix_thz,vehicles,bss_thz)
+    #     result_rf = rf_dr.loc[vid] # current vehicle dr
+    #     result_thz = thz_dr.loc[vid]
+    #     print("result rf",result_rf)
+    #     print("result rf",result_thz)
+    #     return result_rf,result_thz
+
+    def t2_with_threshold_control(self):
+        '''
+        tele action:
+        with bs threshold only 
+        '''
+        vid = self._get_vehicle_id()
+        distance_matrix_rf, vehicles,bss_rf = highway_env.HighwayEnvBS._get_distance_rf_matrix(self)
+        distance_matrix_thz, vehicles,bss_thz = highway_env.HighwayEnvBS._get_distance_thz_matrix(self)
+        # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
+        rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
+        result_rf = rf_dr.loc[vid] # current vehicle dr
+
+        # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
+        thz_dr,thz_interf = thz_sinr_matrix(distance_matrix_thz,vehicles,bss_thz)
+        result_thz = thz_dr.loc[vid]
+
+        # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
+        current_user_rf = highway_env.HighwayEnvBS.get_concurrent_user(self)
+        result_rf = result_rf.divide(current_user_rf) 
+        rbs_max_name,max_rate_rf = highway_env.HighwayEnvBS.recursive_select_max_bs_rf(result_rf)
+
+
+        return rbs_max_name,max_rate_rf
+
+    def t3_with_ho_threshold_control(self):
+        '''
+        tele action:
+        with bs threshold  and ho penalty
+        '''
+        vid = self._get_vehicle_id()
+        distance_matrix_rf, vehicles,bss_rf = highway_env.HighwayEnvBS._get_distance_rf_matrix(self)
+        distance_matrix_thz, vehicles,bss_thz = highway_env.HighwayEnvBS._get_distance_thz_matrix(self)
+        rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
+        # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
+        result_rf = rf_dr.loc[vid] # current vehicle dr
+
+        # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
+        thz_dr,thz_interf = thz_sinr_matrix(distance_matrix_thz,vehicles,bss_thz)
+        result_thz = thz_dr.loc[vid]
+
+        # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
+        current_user_rf = highway_env.HighwayEnvBS.get_concurrent_user(self)
+        result_rf = result_rf.divide(current_user_rf) 
+        rbs_max_name,max_rate_rf = highway_env.HighwayEnvBS.recursive_select_max_bs_rf(result_rf)
+
+
+        return rbs_max_name,max_rate_rf
 
     def steering_control(self, target_lane_index: LaneIndex) -> float:
         """
@@ -151,7 +334,7 @@ class ControlledVehicle(Vehicle):
         steering_angle = np.arctan(2 * np.tan(slip_angle))
         steering_angle = np.clip(steering_angle, -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         return float(steering_angle)
-    
+
     def speed_control(self, target_speed: float) -> float:
         """
         Control the speed of the vehicle.
@@ -206,7 +389,7 @@ class ControlledVehicle(Vehicle):
         coordinates = self.lane.local_coordinates(self.position)
         route = self.route or [self.lane_index]
         return tuple(zip(*[self.road.network.position_heading_along_route(route, coordinates[0] + self.speed * t, 0)
-                           for t in times]))
+                     for t in times]))
 
 
 class MDPVehicle(ControlledVehicle):
@@ -222,7 +405,9 @@ class MDPVehicle(ControlledVehicle):
                  target_lane_index: Optional[LaneIndex] = None,
                  target_speed: Optional[float] = None,
                  target_speeds: Optional[Vector] = None,
+                 target_current_bs: Optional[str]= None,
                  route: Optional[Route] = None) -> None:
+                 
         """
         Initializes an MDPVehicle
 
@@ -322,155 +507,3 @@ class MDPVehicle(ControlledVehicle):
                 if (t % int(trajectory_timestep / dt)) == 0:
                     states.append(copy.deepcopy(v))
         return states
-
-
-# 自定义一个MDPVehicle, 不要修改原来的东西
-class MyMDPVehicle(MDPVehicle):
-
-    def __init__(self,
-                 road: Road,
-                 position: List[float],
-                 heading: float = 0,
-                 speed: float = 0,
-                 env: 'HighwayEnvBS' = None,
-                 target_lane_index: Optional[LaneIndex] = None,
-                 target_speed: Optional[float] = None,
-                 target_speeds: Optional[Vector] = None,
-                 target_current_bs: Optional[str] = None,
-                 target_prev_bs: str = None,
-                 route: Optional[Route] = None) -> None:
-
-        # TODO. 这里target_current_bs 和 target_prev_bs确定没问题?
-        self.target_current_bs = target_prev_bs or 'initial bs'
-        assert env is not None, "MyMDPVehicle's env can not be None"
-        self.env = env
-        super().__init__(road, position, heading, speed, target_lane_index,
-                         target_speed, target_speeds, route)
-
-    def act(self, action = None) -> None:
-        
-        if action is None:
-            super().act(action)
-            self.action["tele_action"] = self.target_current_bs
-            return
-
-        action, action_tele = action
-        # 交通学的action
-        super().act(action)
-
-        # 通讯的action. TODO. 逻辑有问题
-        vid = self._get_vehicle_id()
-        old = self.target_current_bs
-        if action_tele == "t1":  # t1_dr_control
-            bsname, dr = self.t1_dr_control()
-            # self.target_prev_bs = bsname
-            new = bsname
-            # self.target_current_bs = bsname
-            # update the sinr matrix
-            # if(old != new):
-            self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
-            self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
-
-        elif action_tele == "t2":
-            bsname, dr = self.t2_with_threshold_control()
-            new = bsname
-            # if(old != new):
-            self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
-            self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
-
-            # self.target_prev_bs = "BS2"
-            # self.target_current_bs = "BS2"
-
-        elif action_tele == "t3":
-            bsname, dr = self.t3_with_ho_threshold_control()
-            new = bsname
-            # if(old != new):
-            self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
-            self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
-            
-        # TODO 确定有这种情况?
-        else:
-            bsname, dr = self.t1_dr_control()
-            self.target_prev_bs = bsname
-            self.target_current_bs = dr
-            # self.target_prev_bs = "error_bs"
-            # self.target_current_bs = "error_bs"
-
-        # TODO. 更新action. 好像又没有更新. 因为self.target_current_bs并没有改变
-        self.action["tele_action"] = self.target_current_bs
-
-    def t1_dr_control(self):
-        '''
-        Input T1
-        Find the dr table
-        connect with the maximum data rate BS under the BS capacity. 
-        If exceed the BS capacity, connect to the second maximum data rate BS.
-
-        self is defined as current vehicle.
-
-        '''
-        'tele action: dr only'
-        # print("vid is ++++++++++",self._get_vehicle_id)
-        # my_instance = self.env()
-        # result_rf,result_thz = ControlledVehicle.get_rf_thz_info_for_specific_v(self.env._get_bs_assignment_table(),self._get_vehicle_id())
-
-        result_rf, result_thz = self.env.get_rf_thz_info_for_specific_v(self._get_vehicle_id())  # SharedState.bs_performance_table,
-
-        rbs_max_name, max_rate_rf = self.env.recursive_select_max_bs_rf(result_rf)
-
-        #temporary disable thz bs ######################################
-        # tbs_max_name,max_rate_thz = self.env.recursive_select_max_bs_thz(result_thz)
-
-        tbs_max_name, max_rate_thz = 0, 0
-        # max_rate = np.max(result_rf)
-
-        if (max_rate_rf > max_rate_thz):
-            return rbs_max_name, max_rate_rf
-        else:
-            return tbs_max_name, max_rate_thz
-
-    def t2_with_threshold_control(self):
-        '''
-        tele action:
-        with bs threshold only 
-        '''
-        vid = self._get_vehicle_id()
-        distance_matrix_rf, vehicles, bss_rf = self.env._get_distance_rf_matrix()
-        distance_matrix_thz, vehicles, bss_thz = self.env._get_distance_thz_matrix()
-        # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
-        rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf, vehicles, bss_rf)
-        result_rf = rf_dr.loc[vid]  # current vehicle dr
-
-        # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
-        thz_dr, thz_interf = thz_sinr_matrix(distance_matrix_thz, vehicles, bss_thz)
-        result_thz = thz_dr.loc[vid]
-
-        # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
-        current_user_rf = self.env.get_concurrent_user()
-        result_rf = result_rf.divide(current_user_rf)
-        rbs_max_name, max_rate_rf = self.env.recursive_select_max_bs_rf(result_rf)
-
-        return rbs_max_name, max_rate_rf
-
-    def t3_with_ho_threshold_control(self):
-        '''
-        tele action:
-        with bs threshold  and ho penalty
-        '''
-        vid = self._get_vehicle_id()
-        distance_matrix_rf, vehicles, bss_rf = self.env._get_distance_rf_matrix()
-        distance_matrix_thz, vehicles, bss_thz = self.env._get_distance_thz_matrix()
-        rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf, vehicles, bss_rf)
-        # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
-        result_rf = rf_dr.loc[vid]  # current vehicle dr
-
-        # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
-        thz_dr, thz_interf = thz_sinr_matrix(distance_matrix_thz, vehicles, bss_thz)
-        result_thz = thz_dr.loc[vid]
-
-        # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
-        current_user_rf = self.env.get_concurrent_user()
-        result_rf = result_rf.divide(current_user_rf)
-        rbs_max_name, max_rate_rf = self.env.recursive_select_max_bs_rf(result_rf)
-
-        return rbs_max_name, max_rate_rf

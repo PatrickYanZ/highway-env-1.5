@@ -177,16 +177,19 @@ class RoadObject(ABC):
     def __repr__(self):
         return self.__str__()
 
+    # 难以理解的id获取方式. 非常难以理解
     def _get_rf_bs_id(self):
-        test_str = RoadObject.__str__(self)
-        m = re.search(r'\#(.*?)\:', test_str).group(1)
-        m = "rb" + str(m)
+        # test_str = RoadObject.__str__(self)
+        # m = re.search(r'\#(.*?)\:', test_str).group(1)
+        # m = "rb" + str(m)
+        m = f'rb{id(self) % 1000}'
         return m
 
     def _get_thz_bs_id(self):
-        test_str = RoadObject.__str__(self)
-        m = re.search(r'\#(.*?)\:', test_str).group(1)
-        m = "tb" + str(m)
+        # test_str = RoadObject.__str__(self)
+        # m = re.search(r'\#(.*?)\:', test_str).group(1)
+        # m = "tb" + str(m)
+        m = f'tb{id(self) % 1000}'
         return m
 
 

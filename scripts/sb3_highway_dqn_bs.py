@@ -1,3 +1,6 @@
+import sys
+sys.path.append(r'G:\00temp\code\highway-env-1.5')
+
 import gym
 from gym.wrappers import RecordVideo
 from stable_baselines3 import DQN

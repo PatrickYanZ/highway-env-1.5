@@ -26,6 +26,8 @@ class HighwayEnv(AbstractEnv):
     The vehicle is driving on a straight highway with several lanes, and is rewarded for reaching a high speed,
     staying on the rightmost lanes and avoiding collisions.
     """
+    bs_performance_table = pd.DataFrame()
+    bs_assignment_table = pd.DataFrame()
     @classmethod
     def default_config(cls) -> dict:
         config = super().default_config()
@@ -34,7 +36,8 @@ class HighwayEnv(AbstractEnv):
                 "type": "Kinematics"
             },
             "action": {
-                "type": "DiscreteMetaAction",
+                # "type": "DiscreteMetaAction",
+                "type": "DiscreteDualObjectMetaAction",
             },
             "lanes_count": 4,
             "vehicles_count": 50,
@@ -49,7 +52,11 @@ class HighwayEnv(AbstractEnv):
             "high_speed_reward": 0.4,  # The reward received when driving at full speed, linearly mapped to zero for
                                        # lower speeds according to config["reward_speed_range"].
             "lane_change_reward": 0,   # The reward received at each lane change action.
+            "rf_reward":1,
+            "dr_reward": 0.2,
+            "ho_reward":-0.2,
             "reward_speed_range": [20, 30],
+            "normalize_reward": True,
             "offroad_terminal": False
         })
         return config
@@ -57,6 +64,7 @@ class HighwayEnv(AbstractEnv):
     def _reset(self) -> None:
         self._create_road()
         self._create_vehicles()
+
 
     def _create_road(self) -> None:
         """Create a road composed of straight adjacent lanes."""
@@ -85,6 +93,8 @@ class HighwayEnv(AbstractEnv):
                 vehicle.randomize_behavior()
                 self.road.vehicles.append(vehicle)
     
+
+
     def _reward(self, action: Action) -> float:
         """
         The reward is defined to foster driving at high speed, on the rightmost lanes, and to avoid collisions.
@@ -145,16 +155,12 @@ class HighwayEnvFast(HighwayEnv):
             if vehicle not in self.controlled_vehicles:
                 vehicle.check_collisions = False
 
-# copy
 class HighwayEnvObstacle(HighwayEnvFast):
 
     @classmethod
     def default_config(cls) -> dict:
         conf = super().default_config()
         conf.update({
-            "action": {
-                "type": "DiscreteDualObjectMetaAction",
-            },
             "obstacle_count": 20,
             # https://github.com/eleurent/highway-env/issues/35#issuecomment-1206427869
             "termination_agg_fn": 'any'
@@ -276,19 +282,8 @@ class HighwayEnvObstacle(HighwayEnvFast):
             "on_road_reward": float(vehicle.on_road)
         }
 
-# here
-'''
-step: _reward, _is_terminal, _cost
-reset: _reset
-'''
-import sys
-class HighwayEnvBS(HighwayEnvFast):    
+class HighwayEnvBS(HighwayEnvFast):
 
-    def __init__(self, config: dict = None) -> None:
-        super().__init__(config)
-        self.shared_state = SharedState()
-        
-    
     @classmethod
     def default_config(cls) -> dict:
         conf = super().default_config()
@@ -296,66 +291,35 @@ class HighwayEnvBS(HighwayEnvFast):
             "obstacle_count": 20,
             # https://github.com/eleurent/highway-env/issues/35#issuecomment-1206427869
             # https://github.com/eleurent/highway-env/pull/352/files
-            "action": {
-                "type": "DiscreteDualObjectMetaAction",
-            },
             "termination_agg_fn": 'any',
             'rf_bs_count':20,
-            'thz_bs_count':100,
-            "rf_reward":1,
-            "dr_reward": 0.2,
-            "ho_reward":-0.2,
-            "normalize_reward": True,
+            'thz_bs_count':100
         })
         return conf
+    
+    @staticmethod
+    def config(name):
+        return HighwayEnvBS.default_config[name]
+    
 
-    # @staticmethod
-    # def config(name):
-    #     return self.default_config[name]
-
+    shared_state = SharedState()
     # @classmethod
     def _reset(self) -> None:
         # super()._reset()
-        self.shared_state = SharedState()
         self._create_road()
         self._create_vehicles()
-        self._create_bs_assignment_table()
+        self._create_bs_assignment_table(self.shared_state)
+    
+    # @classmethod
+    # def _reset(cls) -> None:
+    #     # super()._reset()
+    #     cls._create_road()
+    #     cls._create_vehicles()
+    #     cls._create_bs_assignment_table(cls.shared_state)
 
-    def _create_road(self) -> None:
-        """Create a road composed of straight adjacent lanes."""
-        self.road = Road(network=RoadNetwork.straight_road_network(self.config["lanes_count"], speed_limit=30),
-                         np_random=self.np_random, record_history=self.config["show_trajectories"])
-        # print('lanes count', self.config["lanes_count"])#debug
-        # Adding obstacles at random places on the lanes
-        for i in range(1, self.config['obstacle_count']):
-            lanes = [4 * lane for lane in range(self.config["lanes_count"])]
-            # print('lanes count', self.config["lanes_count"])#debug
-            # print('lanes are ',lanes)#debug
-            obstacle_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
-            # obstacle_lane = 0
-            # print('obstacle_lane is ', obstacle_lane) #debug
-            obstacle_dist = np.random.randint(300, 10000)
-            # print('obstacle_dist is ', obstacle_dist) #debug
-            self.road.objects.append(Obstacle(self.road, [obstacle_dist, obstacle_lane]))
-            
-        
-            '''creating RF bss'''
-        for i in range(1, self.config['rf_bs_count']):
-            rf_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
-            rf_bs_dist = np.random.randint(300, 10000)
-            # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
-            # TODO: 重复对象
-            self.road.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
-            # SharedState.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
-            self.shared_state.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
-
-            '''creating thz bss'''
-        for i in range(1, self.config['thz_bs_count']):
-            thz_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
-            thz_bs_dist = np.random.randint(300, 10000)
-            # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
-            self.road.thz_bss.append(THz_BS(self.road, [thz_bs_dist, thz_bs_lane]))
-            self.shared_state.thz_bss.append(THz_BS(self.road, [thz_bs_dist, thz_bs_lane]))
+    # def __init__(self, config: Dict) -> None:
+    #     self.config = config
+    #     super().__init__(config)
 
     def _create_vehicles(self) -> None:
         """Create some new random vehicles of a given type, and add them on the road."""
@@ -392,42 +356,255 @@ class HighwayEnvBS(HighwayEnvFast):
                 vehicle.randomize_behavior()
                 self.road.vehicles.append(vehicle)
                 self.shared_state.vehicles.append(vehicle) # shared state append
+            # print('self.shared_state.vehicles\n',self.shared_state.vehicles)
 
-    def _create_bs_assignment_table(self) -> None: #, shared_state: SharedState
+    # dict={
+    #         "lanes_count": 4,
+    #         "vehicles_count": 50,
+    #         "controlled_vehicles": 1,
+    #         "initial_lane_id": None,
+    #         "duration": 40,  # [s]
+    #         "ego_spacing": 2,
+    #         "vehicles_density": 1,
+    #         "collision_reward": -1,    # The reward received when colliding with a vehicle.
+    #         "right_lane_reward": 0.1,  # The reward received when driving on the right-most lanes, linearly mapped to
+    #                                    # zero for other lanes.
+    #         "high_speed_reward": 0.4,  # The reward received when driving at full speed, linearly mapped to zero for
+    #                                    # lower speeds according to config["reward_speed_range"].
+    #         "lane_change_reward": 0,   # The reward received at each lane change action.
+    #         "rf_reward":1,
+    #         "dr_reward": 0.2,
+    #         "ho_reward":-0.2,
+    #         "reward_speed_range": [20, 30],
+    #         "normalize_reward": True,
+    #         "offroad_terminal": False
+    # }
+    # @classmethod
+    # def _create_vehicles(cls) -> None:
+    #     """Create some new random vehicles of a given type, and add them on the road."""
+    #     other_vehicles_type = utils.class_from_path(HighwayEnvBS.default_config()["other_vehicles_type"])
+    #     other_per_controlled = near_split(HighwayEnvBS.default_config()["vehicles_count"], num_bins=HighwayEnvBS.default_config()["controlled_vehicles"])
+
+    #     cls.controlled_vehicles = []
+    #     vehicle_dist = 0.0
+    #     # lanes = [4 * lane for lane in range(HighwayEnvBS.default_config()["lanes_count"])]
+    #     for others in other_per_controlled:
+    #         vehicle = Vehicle.create_random(
+    #             cls.road,
+    #             speed=25,
+    #             lane_id=HighwayEnvBS.default_config()["initial_lane_id"],
+    #             spacing=HighwayEnvBS.default_config()["ego_spacing"]
+    #         )
+    #         vehicle = cls.action_type.vehicle_class(cls.road, vehicle.position, vehicle.heading, vehicle.speed)
+    #         if HighwayEnvBS.default_config()['controlled_vehicles']:
+    #             # vehicle_lane = np.random.choice(lanes)
+    #             # To make sure the agents doesn't collide on the start itself because of the random obstacles.
+    #             # vehicle.position = np.array([vehicle_dist, vehicle_lane])
+    #             # vehicle_dist += 25
+    #             lanes = [4 * lane for lane in range(HighwayEnvBS.default_config()["lanes_count"])]
+    #             vehicle_lane = np.random.choice(lanes)
+    #             vehicle_dist += 25
+    #             vehicle.position = np.array([vehicle_dist, vehicle_lane])
+    #             cls.controlled_vehicles.append(vehicle)
+    #             cls.road.vehicles.append(vehicle)
+    #         else:
+    #             cls.controlled_vehicles.append(vehicle)
+    #         for _ in range(others):
+    #             vehicle = other_vehicles_type.create_random(cls.road, spacing=1 / HighwayEnvBS.default_config()["vehicles_density"])
+    #             vehicle.randomize_behavior()
+    #             cls.road.vehicles.append(vehicle)
+
+    # @classmethod
+    # def _create_road(cls) -> None:
+    #     """Create a road composed of straight adjacent lanes."""
+
+    #     # testing config
+    #     # print(HighwayEnvBS.default_config())
+    #     # print('lane counts1',HighwayEnvBS.default_config().get("lanes_count", False))
+    #     # print('lane counts2',HighwayEnvBS.default_config()["lanes_count"])
+    #     # # print('lane counts3',HighwayEnvBS.default_config(cls)["lanes_count"])
+    #     # print('show_trajectories',HighwayEnvBS.default_config("show_trajectories"))
+    #     # print('np_random',cls.np_random)
+
+    #     # cls.road = Road(network=RoadNetwork.straight_road_network(HighwayEnvBS.default_config()["lanes_count"], speed_limit=30),
+    #     #         np_random=cls.np_random, record_history=cls.default_config["show_trajectories"])
+    #     np_random2 = np.random.RandomState()
+    #     # cls.road = Road(network=RoadNetwork.straight_road_network(HighwayEnvBS.default_config()["lanes_count"], speed_limit=30),
+    #     #                 np_random=cls.np_random, record_history=HighwayEnvBS.default_config()["show_trajectories"])
+    #     cls.road = Road(network=RoadNetwork.straight_road_network(HighwayEnvBS.default_config()["lanes_count"], speed_limit=30),
+    #             np_random=np_random2, record_history=HighwayEnvBS.default_config()["show_trajectories"])
+    #     print('lanes count', HighwayEnvBS.default_config()["lanes_count"])#debug
+    #     # Adding obstacles at random places on the lanes
+    #     for i in range(1, HighwayEnvBS.default_config()['obstacle_count']):
+    #         lanes = [4 * lane for lane in range(HighwayEnvBS.default_config()["lanes_count"])]
+    #         # print('lanes count', HighwayEnvBS.default_config()["lanes_count"])#debug
+    #         # print('lanes are ',lanes)#debug
+    #         obstacle_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
+    #         # obstacle_lane = 0
+    #         # print('obstacle_lane is ', obstacle_lane) #debug
+    #         obstacle_dist = np.random.randint(300, 10000)
+    #         # print('obstacle_dist is ', obstacle_dist) #debug
+    #         cls.road.objects.append(Obstacle(cls.road, [obstacle_dist, obstacle_lane]))
+
+    #     '''creating RF bss'''
+    #     for i in range(1, HighwayEnvBS.default_config()['rf_bs_count']):
+    #         rf_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
+    #         rf_bs_dist = np.random.randint(300, 10000)
+    #         # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+    #         cls.road.rf_bss.append(RF_BS(cls.road, [rf_bs_dist, rf_bs_lane]))
+    #         # SharedState.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+    #         cls.shared_state.rf_bss.append(RF_BS(cls.road, [rf_bs_dist, rf_bs_lane]))
+
+    #         '''creating thz bss'''
+    #     for i in range(1, HighwayEnvBS.default_config()['thz_bs_count']):
+    #         thz_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
+    #         thz_bs_dist = np.random.randint(300, 10000)
+    #         # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+    #         cls.road.thz_bss.append(THz_BS(cls.road, [thz_bs_dist, thz_bs_lane]))
+    #         cls.shared_state.thz_bss.append(THz_BS(cls.road, [rf_bs_dist, rf_bs_lane]))
+    
+    # @classmethod
+    def _create_road(self) -> None:
+        """Create a road composed of straight adjacent lanes."""
+        self.road = Road(network=RoadNetwork.straight_road_network(self.config["lanes_count"], speed_limit=30),
+                         np_random=self.np_random, record_history=self.config["show_trajectories"])
+        # print('lanes count', self.config["lanes_count"])#debug
+        # Adding obstacles at random places on the lanes
+        for i in range(1, self.config['obstacle_count']):
+            lanes = [4 * lane for lane in range(self.config["lanes_count"])]
+            # print('lanes count', self.config["lanes_count"])#debug
+            # print('lanes are ',lanes)#debug
+            obstacle_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
+            # obstacle_lane = 0
+            # print('obstacle_lane is ', obstacle_lane) #debug
+            obstacle_dist = np.random.randint(300, 10000)
+            # print('obstacle_dist is ', obstacle_dist) #debug
+            self.road.objects.append(Obstacle(self.road, [obstacle_dist, obstacle_lane]))
+            
+        
+            '''creating RF bss'''
+        for i in range(1, self.config['rf_bs_count']):
+            rf_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
+            rf_bs_dist = np.random.randint(300, 10000)
+            # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+            self.road.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+            # SharedState.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+            self.shared_state.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+
+            '''creating thz bss'''
+        for i in range(1, self.config['thz_bs_count']):
+            thz_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
+            thz_bs_dist = np.random.randint(300, 10000)
+            # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+            self.road.thz_bss.append(THz_BS(self.road, [thz_bs_dist, thz_bs_lane]))
+            self.shared_state.thz_bss.append(THz_BS(self.road, [rf_bs_dist, rf_bs_lane]))
+
+        # print('self.shared_state.rf_bss\n',self.shared_state.rf_bss)
+        # print('self.shared_state.thz_bss\n',self.shared_state.thz_bss)
+    
+    # def __init__(self: dict = None) -> None:
+    #     # BS assignment table
+    #     self.bs_assignment_table = pd.DataFrame()
+
+    #     # BS performance table
+    #     self.bs_performance_table = pd.DataFrame()
+
+    # @classmethod
+    def _create_bs_assignment_table(self,shared_state: SharedState) -> None: #, shared_state: SharedState
         # shared_state = self.shared_state  # Get the SharedState object
-        rf_assignment_matrix,vehicle_list,rbs_list = self._create_assignment_rf_matrix()
-        thz_assignment_matrix,vehicle_list,tbs_list = self._create_assignment_thz_matrix() #,shared_state
+        rf_assignment_matrix,vehicle_list,rbs_list = HighwayEnvBS._create_assignment_rf_matrix(self,shared_state)
+        thz_assignment_matrix,vehicle_list,tbs_list = HighwayEnvBS._create_assignment_thz_matrix(self,shared_state) #,shared_state
         # self.bs_assignment_table = rf_assignment_matrix
         # global bs_assignment_table
         # print('rf_assignment_matrix\n',rf_assignment_matrix)
-        self.shared_state.bs_assignment_table = rf_assignment_matrix
+        shared_state.bs_assignment_table = rf_assignment_matrix #self
         # bs_assignment_table = rf_assignment_matrix
 
 
         #_create_bs_performance_table
-        distance_matrix_rf, vehicles,bss_rf = self._get_distance_rf_matrix()
-        distance_matrix_thz, vehicles,bss_thz = self._get_distance_thz_matrix()
+        distance_matrix_rf, vehicles,bss_rf = HighwayEnvBS._get_distance_rf_matrix(self,shared_state)#self
+        distance_matrix_thz, vehicles,bss_thz = HighwayEnvBS._get_distance_thz_matrix(self,shared_state)
 
         rf_dr, rf_interference = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
-        self.shared_state.bs_performance_table = rf_dr
+        shared_state.bs_performance_table = rf_dr
         # print('rf_assignment_matrix\n',rf_assignment_matrix)
         # print('rf_dr\n',rf_dr)
         # print('self.shared_state.bs_assignment_table\n',rf_assignment_matrix)
         # print('self.shared_state.bs_performance_table\n',rf_dr)
 
         return rf_assignment_matrix,rf_dr
+    
+    
+    # @classmethod
+    # def _create_bs_assignment_table(cls) -> None: #, shared_state: SharedState
+    #     shared_state = cls.shared_state  # Get the SharedState object
+    #     rf_assignment_matrix,vehicle_list,rbs_list = HighwayEnvBS._create_assignment_rf_matrix(cls,shared_state)
+    #     thz_assignment_matrix,vehicle_list,tbs_list = HighwayEnvBS._create_assignment_thz_matrix(cls,shared_state) #,shared_state
+    #     # self.bs_assignment_table = rf_assignment_matrix
+    #     # global bs_assignment_table
+    #     cls.shared_state.bs_assignment_table = rf_assignment_matrix
+    #     # bs_assignment_table = rf_assignment_matrix
 
-    # not used
-    def _get_bs_assignment_table(self) -> pd.DataFrame:
-        # return self.bs_assignment_table
+
+    #     #_create_bs_performance_table
+    #     distance_matrix_rf, vehicles,bss_rf = HighwayEnvBS._get_distance_rf_matrix(cls,shared_state)
+    #     distance_matrix_thz, vehicles,bss_thz = HighwayEnvBS._get_distance_thz_matrix(cls,shared_state)
+
+    #     rf_dr, rf_interference = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
+    #     cls.shared_state.bs_performance_table = rf_dr
+
+    #     return rf_assignment_matrix,rf_dr
+
+    # def _create_bs_performance_table(self) -> None:
+    #     # self.bs_performance_table = pd.DataFrame()
+
+    #     distance_matrix_rf, vehicles,bss_rf = HighwayEnvBS._get_distance_rf_matrix(self)
+    #     distance_matrix_thz, vehicles,bss_thz = HighwayEnvBS._get_distance_thz_matrix(self)
+
+    #     # vid = vehicle._get_vehicle_id()
+    #     # rf_sinr = rf_sinr_matrix(distance_matrix,vehicles,bss)
+    #     # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
+
+    #     rf_dr, rf_interference = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
+        
+    #     # result_rf = rf_dr.loc[vid] # current vehicle dr
+
+    #     # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
+
+    #     # to be IMPLEMENTED !!!!!!!!!!!!!!!!!!!!!!! change rf to thz
+    #     thz_dr, thz_interference = thz_sinr_matrix(distance_matrix_thz,vehicles,bss_thz)
+    #     global bs_performance_table
+
+    #     self.bs_performance_table = rf_dr
+    #     bs_performance_table = rf_dr
+    #     return rf_dr
+    
+    # @classmethod
+    # def _get_bs_assignment_table(cls) -> pd.DataFrame:
+    #     # return HighwayEnvBS.bs_assignment_table
+    #     # return self.bs_assignment_table
+    #     return cls.bs_performance_table
+
+    def _get_bs_assignment_table(self,shared_state: SharedState) -> pd.DataFrame:
+        # return HighwayEnvBS.bs_assignment_table
         # return self.bs_assignment_table
         return self.shared_state.bs_assignment_table
+
+    # @classmethod
+    # def _get_bs_performance_table(cls) -> pd.DataFrame:
+    #     # return HighwayEnvBS.bs_performance_table
+    #     return cls.bs_performance_table
 
     def _info(self, obs: np.ndarray, action: int) -> dict:
         info = super()._info(obs, action)
         info['other_vehicle_collision'] = \
             sum(vehicle.crashed for vehicle in self.road.vehicles if vehicle not in self.controlled_vehicles)
+        # changed
+        # info['agents_rewards'] = tuple(self._agent_reward(action, vehicle)[0] for vehicle in self.controlled_vehicles)
 
+        # tran changed
+        
+        # tele changed
         info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['rf_reward'] for vehicle in self.controlled_vehicles)
         info['agents_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles)
         # info['agents_tr_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) to be implemented
@@ -439,7 +616,8 @@ class HighwayEnvBS(HighwayEnvFast):
     # To check if a single agent has collided
     def _agent_is_terminal(self, vehicle) -> bool:
         """The episode is over if the ego vehicle crashed."""
-        return vehicle.crashed or (self.config["offroad_terminal"] and not vehicle.on_road)
+        return vehicle.crashed or \
+            (self.config["offroad_terminal"] and not vehicle.on_road)
 
     # To terminate when the duration limit has reached.
     def _is_truncated(self) -> bool:
@@ -474,7 +652,7 @@ class HighwayEnvBS(HighwayEnvFast):
             for name in agents_rewards[0].keys()
         }
 
-    # TODO
+
     def _agent_reward(self, action: int, vehicle: Vehicle) -> float:
         """Per-agent reward signal."""
         rewards = self._agent_rewards(action, vehicle)
@@ -490,6 +668,8 @@ class HighwayEnvBS(HighwayEnvFast):
         reward_te = rewards['rf_reward']
         return reward #,reward_tr,reward_te
 
+
+
     def _agent_rewards(self, action: int, vehicle: Vehicle) -> Dict[Text, float]:
         """Per-agent per-objective reward signal."""
         neighbours = self.road.network.all_side_lanes(vehicle.lane_index)
@@ -498,14 +678,14 @@ class HighwayEnvBS(HighwayEnvFast):
         # Use forward speed rather than speed, see https://github.com/eleurent/highway-env/issues/268
         forward_speed = vehicle.speed * np.cos(vehicle.heading)
         scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
-        distance_matrix_rf, vehicles,bss_rf = self._get_distance_rf_matrix()
+        distance_matrix_rf, vehicles,bss_rf = HighwayEnvBS._get_distance_rf_matrix(self,shared_state=SharedState)
         # UNIMPLEMENTED
-        distance_matrix_thz, vehicles,bss_thz = self._get_distance_thz_matrix()
+        distance_matrix_thz, vehicles,bss_thz = HighwayEnvBS._get_distance_thz_matrix(self,shared_state=SharedState)
 
         vid = vehicle._get_vehicle_id()
         # rf_dr = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
         # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
-        rf_dr,assignment_table = self.get_performance_assignment_tables()
+        rf_dr,assignment_table = HighwayEnvBS.get_performance_assignment_tables(HighwayEnvBS)
         v_linkage = assignment_table.loc[vid]
         current_bs_linkage = v_linkage.idxmax()
         # print('target vehicle vid',vid)
@@ -521,11 +701,11 @@ class HighwayEnvBS(HighwayEnvFast):
 
         
         # print("result is ",type(result),result)
-        # nearst_bs_id,nearst_rf_bs_distance = self._get_min_bs(result) # min(distance_matrix["v"+str(vid)])
+        # nearst_bs_id,nearst_rf_bs_distance = HighwayEnvBS._get_min_bs(result) # min(distance_matrix["v"+str(vid)])
 
         # it does not make sense to find the maximum data rate, we based on the realistic linkage
-        # bs_min_name,min_rate,bs_max_name,max_rate = self._get__max_min_dr_bs(result_rf)
-        # bs_min_name,min_rate,bs_max_name,max_rate_thz = self._get__max_min_dr_bs(result_thz)
+        # bs_min_name,min_rate,bs_max_name,max_rate = HighwayEnvBS._get__max_min_dr_bs(result_rf)
+        # bs_min_name,min_rate,bs_max_name,max_rate_thz = HighwayEnvBS._get__max_min_dr_bs(result_thz)
         # print('shape before and after ',distance_matrix_rf.shape,rf_dr.shape)
         return {
             "collision_reward": float(vehicle.crashed),
@@ -537,7 +717,7 @@ class HighwayEnvBS(HighwayEnvFast):
             # "rf_reward": float(1/rf_sinr_specific_vehicle)
         }
 
-    def _get__max_min_dr_bs(self, ser):
+    def _get__max_min_dr_bs(ser):
         '''
         Input
         rb448    2486.719716
@@ -570,26 +750,24 @@ class HighwayEnvBS(HighwayEnvFast):
         # print("bs name and min rate",bs_name,min_rate,max_rate)
         return bs_min_name,min_rate,bs_max_name,max_rate
     
-    def _get_n_max_bs(self, ser, n):
+    def _get_n_max_bs(ser,n):
         '''
         return n maximum data rate with corresponding bs id
         Also useful for distance 
         '''
         return ser.nlargest(n)
 
-    def _get_n_min_bs(self, ser, n):
+    def _get_n_min_bs(ser,n):
         '''
         return n minimum data rate with corresponding bs id
         '''
         return ser.nsmallest(n)
 
-    def list_drop_duplicate(self, x):
+
+    def list_drop_duplicate(x):
         return list(dict.fromkeys(x))
 
-    # ========================================
-
-
-    def _create_assignment_rf_matrix(self):
+    def _create_assignment_rf_matrix(self,shared_state: SharedState):
         '''
         distance matrice between AVs and RF BSs.
         '''
@@ -616,14 +794,84 @@ class HighwayEnvBS(HighwayEnvFast):
                 # distance = utils.relative_distance(x1,x2,y1,y2)
                 bid = bs._get_rf_bs_id()
                 bs_list.append(bid)
-                distance_matrix.at[vid, bid]= 0 #default is 0
+                distance_matrix.at[vid,bid]= 0 #default is 0
 
         vehicle_list = list( dict.fromkeys(vehicle_list))
         bs_list = list( dict.fromkeys(bs_list))
 
         return distance_matrix,vehicle_list,bs_list
 
-    def _create_assignment_thz_matrix(self):
+    def _create_assignment_rf_matrix(self,shared_state: SharedState):
+        '''
+        distance matrice between AVs and RF BSs.
+        '''
+        # bss = self.road.rf_bss
+        # vehicles = self.road.vehicles
+        bss = shared_state.rf_bss
+        vehicles = shared_state.vehicles
+        # vehicles = self.controlled_vehicles
+
+        distance_matrix = pd.DataFrame() 
+
+        vehicle_list = []
+        bs_list = []
+
+        for v in vehicles:
+            # x2,y2 = v.position
+            vid = v._get_vehicle_id()
+            # vid_str = "v" + str(vid)
+            vehicle_list.append(vid)
+            # distance_matrix[vid_str] = []
+            bs_list = []
+            for bs in bss:
+                # x1,y1 = bs.position
+                # distance = utils.relative_distance(x1,x2,y1,y2)
+                bid = bs._get_rf_bs_id()
+                bs_list.append(bid)
+                distance_matrix.at[vid,bid]= 0 #default is 0
+
+        vehicle_list = list( dict.fromkeys(vehicle_list))
+        bs_list = list( dict.fromkeys(bs_list))
+
+        return distance_matrix,vehicle_list,bs_list
+
+    # def _create_assignment_rf_matrix(cls,shared_state: SharedState):
+    #     '''
+    #     distance matrice between AVs and RF BSs.
+    #     '''
+    #     # bss = self.road.rf_bss
+    #     # vehicles = self.road.vehicles
+    #     bss = shared_state.rf_bss
+    #     vehicles = shared_state.vehicles
+    #     # vehicles = self.controlled_vehicles
+
+    #     distance_matrix = pd.DataFrame() 
+
+    #     vehicle_list = []
+    #     bs_list = []
+
+    #     for v in vehicles:
+    #         # x2,y2 = v.position
+    #         vid = v._get_vehicle_id()
+    #         # vid_str = "v" + str(vid)
+    #         vehicle_list.append(vid)
+    #         # distance_matrix[vid_str] = []
+    #         bs_list = []
+    #         for bs in bss:
+    #             # x1,y1 = bs.position
+    #             # distance = utils.relative_distance(x1,x2,y1,y2)
+    #             bid = bs._get_rf_bs_id()
+    #             bs_list.append(bid)
+    #             distance_matrix.at[vid,bid]= 0 #default is 0
+
+    #     vehicle_list = list( dict.fromkeys(vehicle_list))
+    #     bs_list = list( dict.fromkeys(bs_list))
+
+    #     return distance_matrix,vehicle_list,bs_list
+    
+
+
+    def _create_assignment_thz_matrix(self,shared_state: SharedState):
         '''
         distance matrice between AVs and RF BSs.
         '''
@@ -631,8 +879,8 @@ class HighwayEnvBS(HighwayEnvFast):
         # vehicles = self.road.vehicles
         # bss = shared_state.thz_bss
         # vehicles = shared_state.vehicles
-        bss = self.shared_state.thz_bss
-        vehicles = self.shared_state.vehicles
+        bss = shared_state.thz_bss
+        vehicles = shared_state.vehicles
         # vehicles = self.controlled_vehicles
         distance_matrix = pd.DataFrame() 
 
@@ -653,8 +901,8 @@ class HighwayEnvBS(HighwayEnvFast):
         
         return distance_matrix,vehicle_list,bs_list
 
-    # TODO. action
-    def _get_distance_rf_matrix(self) -> Tuple[pd.DataFrame, List[int], List[int]]:
+
+    def _get_distance_rf_matrix(self,shared_state: SharedState):
         '''
         distance matrice between AVs and RF BSs.
         '''
@@ -680,8 +928,6 @@ class HighwayEnvBS(HighwayEnvFast):
                 distance = utils.relative_distance(x1,x2,y1,y2)
                 bid = bs._get_rf_bs_id()
                 bs_list.append(bid)
-                # TODO: here
-                # PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
                 distance_matrix.at[vid,bid]=distance
 
             
@@ -692,14 +938,13 @@ class HighwayEnvBS(HighwayEnvFast):
         bs_list = list( dict.fromkeys(bs_list) )
         # print('after vehicle len',len(vehicle_list),vehicle_list)
         # print('after bss len',len(bs_list),bs_list)
-        return distance_matrix, vehicle_list, bs_list
+        return distance_matrix,vehicle_list,bs_list
 
-    # @staticmethod
-    # def get_distance_rf_matrix(env: 'HighwayEnvBS') -> Tuple[pd.DataFrame, List[int], List[int]]:
-    #     return env._get_distance_rf_matrix()
+    @staticmethod
+    def get_distance_rf_matrix(env: 'HighwayEnvBS') -> Tuple[pd.DataFrame, List[int], List[int]]:
+        return env._get_distance_rf_matrix()
 
-    # TODO. action
-    def _get_distance_thz_matrix(self):
+    def _get_distance_thz_matrix(self,shared_state: SharedState):
         '''
         distance matrice between AVs and Thz BSs.
         '''
@@ -721,26 +966,21 @@ class HighwayEnvBS(HighwayEnvFast):
             for bs in bss:
                 x1,y1 = bs.position
                 distance = utils.relative_distance(x1,x2,y1,y2)
-                # TODO
                 bid = bs._get_thz_bs_id()
                 bs_list.append(bid)
                 distance_matrix.at[vid,bid]=distance
 
-        # TODO
-        vehicle_list = list(dict.fromkeys(vehicle_list))
-        bs_list = list(dict.fromkeys(bs_list))
+        vehicle_list = list( dict.fromkeys(vehicle_list) )
+        bs_list = list( dict.fromkeys(bs_list) )
         return distance_matrix,vehicle_list,bs_list
 
-    # ========================================
-
-    # TODO. action
-    def get_rf_thz_info_for_specific_v(self, vid):#self
+    def get_rf_thz_info_for_specific_v(vid):#self
         # vid = self._get_vehicle_id()
         # print("vid",vid)
         # env = highway_env.HighwayEnvBS()
-        distance_matrix_rf, vehicles,bss_rf = self._get_distance_rf_matrix()
+        distance_matrix_rf, vehicles,bss_rf = HighwayEnvBS._get_distance_rf_matrix(HighwayEnvBS,shared_state=SharedState)
         # print(distance_matrix_rf, vehicles,bss_rf)
-        distance_matrix_thz, vehicles,bss_thz = self._get_distance_thz_matrix()
+        distance_matrix_thz, vehicles,bss_thz = HighwayEnvBS._get_distance_thz_matrix(HighwayEnvBS,shared_state=SharedState)
         # print(distance_matrix_thz, vehicles,bss_thz)
         # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
         rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf,vehicles,bss_rf)
@@ -759,15 +999,14 @@ class HighwayEnvBS(HighwayEnvFast):
         # print("result thz\n",result_thz)
         return result_rf,result_thz
 
-    # TODO. action
-    def recursive_select_max_bs_rf(self, result_rf):
+    def recursive_select_max_bs_rf(result_rf):
         i = 0
         # print("result rf\n",result_rf)
-        rf_vacant_list = self.get_vacant_rf_bs_list()
+        rf_vacant_list = HighwayEnvBS.get_vacant_rf_bs_list(HighwayEnvBS)
         bs_max_name = result_rf.idxmax()
         length = result_rf.size 
         while(i < length):
-            if self.check_connect_with_bs(rf_vacant_list, bs_max_name):
+            if HighwayEnvBS.check_connect_with_bs(rf_vacant_list,bs_max_name):
                 rbs_max_name = result_rf.idxmax()
                 max_rate_rf = np.max(result_rf)
                 break
@@ -776,14 +1015,13 @@ class HighwayEnvBS(HighwayEnvFast):
             i = i + 1
         return rbs_max_name,max_rate_rf
 
-    # TODO
-    def recursive_select_max_bs_thz(self, result_thz):
+    def recursive_select_max_bs_thz(result_thz):
         i = 0
-        thz_vacant_list = self.get_vacant_thz_bs_list()
+        thz_vacant_list = HighwayEnvBS.get_vacant_thz_bs_list(HighwayEnvBS)
         bs_max_name = result_thz.idxmax()
         length = result_thz.size 
         while(i < length):
-            if self.check_connect_with_bs(thz_vacant_list,bs_max_name):
+            if HighwayEnvBS.check_connect_with_bs(thz_vacant_list,bs_max_name):
                 tbs_max_name = result_thz.idxmax()
                 max_rate_thz = np.max(result_thz)
                 break
@@ -792,9 +1030,38 @@ class HighwayEnvBS(HighwayEnvFast):
             i = i + 1
         return tbs_max_name,max_rate_thz
 
+    # def _get_sinr_rf_matrix(self):
+    #     '''
+    #     distance matrice between AVs and RF BSs.
+    #     '''
+    #     bss = self.road.rf_bss
+    #     vehicles = self.road.vehicles
+    #     distance_matrix = {} #dict()
+
+
+    #     for v in vehicles:
+    #         x2,y2 = v.position
+    #         vid = int(v._get_vehicle_id())
+    #         distance_matrix[vid] = {}
+    #         for bs in bss:
+    #             x1,y1 = bs.position
+    #             distance = utils.relative_distance(x1,x2,y1,y2)
+    #             bid = int(bs._get_rf_bs_id())
+    #             distance_matrix[vid][bid] = distance
+    #             # print("vehicle is is ",vid,"rf bs id is",bid,'relative distance is ',distance)
+    #     return distance_matrix
+
+
+    # def _get_distance_thz_matrix():
+    #     '''
+    #     distance matrice between AVs and THz BSs.
+    #     '''
+    #     return 0
+
     def get_performance_assignment_tables(self):
         # return the mobility aware throughput table and base station assignment table
-        return self.shared_state.bs_performance_table, self.shared_state.bs_assignment_table
+        return self.shared_state.bs_performance_table,self.shared_state.bs_assignment_table
+    
     
     def get_concurrent_user(self):
         # Based on the base station assignment table, we calculate how many concurrent AVs connect with the specific base stations.
@@ -819,27 +1086,27 @@ class HighwayEnvBS(HighwayEnvFast):
         # print(self.bs_assignment_table.sum())
         return self.shared_state.bs_assignment_table.sum()
 
-    def get_config(self, attr):
+    def get_config(self,attr):
         return self.config[attr]
     
     def get_current_user(self):
-        return self.get_concurrent_user(self)
+        return HighwayEnvBS.get_concurrent_user(self)
 
     def get_vacant_rf_bs_list(self):
         # Based on the concurrent user, we generate how many vacants on each base stations
         '''
 
-            bs1	bs2	bs3	bs4	bs5	bs6	bs7	bs8	bs9	bs10
+        	bs1	bs2	bs3	bs4	bs5	bs6	bs7	bs8	bs9	bs10
 currentuser	7	4	6	4	3	2	5	5	3	4
 tupple	    5	5	5	5	5	5	5	5	5	5
 result	    -2	1	-1	1	2	3	0	0	2	1
 
         '''
-        # rf_bs_count = self.config['rf_bs_count']
+        # rf_bs_count = HighwayEnvBS.self.config['rf_bs_count']
         # my_instance = HighwayEnvBS()
-        # self.get_config(my_instance,'rf_bs_count')
-        # tupples_rf = np.ones(self.get_config(my_instance,'rf_bs_count'))*10 # assume one RF BS can connect 10 AVs in maximum 
-        current_users = self.get_concurrent_user()
+        # HighwayEnvBS.get_config(my_instance,'rf_bs_count')
+        # tupples_rf = np.ones(HighwayEnvBS.get_config(my_instance,'rf_bs_count'))*10 # assume one RF BS can connect 10 AVs in maximum 
+        current_users = HighwayEnvBS.get_concurrent_user(HighwayEnvBS)
         # print('current_users\n',current_users)
         tupples_rf = np.ones(len(current_users))*10 # assume one RF BS can connect 10 AVs in maximum 
         # print('tupples_rf\n',tupples_rf)
@@ -857,26 +1124,27 @@ result	    -2	1	-1	1	2	3	0	0	2	1
         bs1	bs2	bs3	bs4	bs5	bs6	bs7	bs8	bs9	bs10
         5	2	6	7	5	4	6	3	5	4
 
-            bs1	bs2	bs3	bs4	bs5	bs6	bs7	bs8	bs9	bs10
+        	bs1	bs2	bs3	bs4	bs5	bs6	bs7	bs8	bs9	bs10
 currentuser	7	4	6	4	3	2	5	5	3	4
 tupple	    5	5	5	5	5	5	5	5	5	5
 result	    -2	1	-1	1	2	3	0	0	2	1
 
         '''
-        current_users = self.get_concurrent_user()
+        current_users = HighwayEnvBS.get_concurrent_user(HighwayEnvBS)
         tupples_thz = np.ones(len(current_users))*5 # assume one THz BS can connect 5 AVs in maximum 
        
         result = np.subtract(tupples_thz,current_users)
         return result
 
-    def check_connect_with_bs(self, vacant_list, bs):
+    def check_connect_with_bs(vacant_list,bs):
         # print("vacant_list\n",vacant_list)
         # print("bs\n",bs)
         num_vacant =  int(vacant_list.loc[bs])
 
         return (num_vacant > 0)
         
-    def _get_3_nearst_bss(self):
+
+    def _get_3_nearst_bss():
         '''
         we iterate the list of all base stations and current vehicle
         keep the set of base stations set which capacity is 3.
@@ -885,7 +1153,7 @@ result	    -2	1	-1	1	2	3	0	0	2	1
         '''
         return 0
     
-    def _get_3_maximum_sinr_bss(self):
+    def _get_3_maximum_sinr_bss():
         '''
         we iterate the list of all base stations and current vehicle
         keep the set of base stations set which capacity is 3.
@@ -894,14 +1162,13 @@ result	    -2	1	-1	1	2	3	0	0	2	1
         '''
         return 0
     
-    def _relative_distance(self, x1,x2,y1,y2):
-        # print(sys._getframe().f_code.co_name)
+    def _relative_distance(x1,x2,y1,y2):
         return utils.relative_distance(x1,x2,y1,y2)
 
 
 
 register(
-    id='highway-bs-v1',
+    id='highway-bs-v0',
     entry_point='highway_env.envs:HighwayEnvBS',
 )
 
