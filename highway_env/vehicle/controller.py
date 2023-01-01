@@ -338,10 +338,14 @@ class MyMDPVehicle(MDPVehicle):
                  target_speeds: Optional[Vector] = None,
                  target_current_bs: Optional[str] = None,
                  target_prev_bs: str = None,
+                 target_ho: int = 0,
                  route: Optional[Route] = None) -> None:
 
         # TODO. 这里target_current_bs 和 target_prev_bs确定没问题?
-        self.target_current_bs = target_prev_bs or 'initial bs'
+        # self.target_current_bs = target_prev_bs or 'initial bs'
+        self.target_current_bs = target_current_bs or 'initial bs'
+        self.target_ho = target_ho
+
         assert env is not None, "MyMDPVehicle's env can not be None"
         self.env = env
         super().__init__(road, position, heading, speed, target_lane_index,
@@ -367,14 +371,16 @@ class MyMDPVehicle(MDPVehicle):
             new = bsname
             # self.target_current_bs = bsname
             # update the sinr matrix
-            # if(old != new):
+            if(old != new):
+                self.target_ho += 1
             self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
             self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
 
         elif action_tele == "t2":
             bsname, dr = self.t2_with_threshold_control()
             new = bsname
-            # if(old != new):
+            if(old != new):
+                self.target_ho += 1
             self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
             self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
 
@@ -382,22 +388,23 @@ class MyMDPVehicle(MDPVehicle):
             # self.target_current_bs = "BS2"
 
         elif action_tele == "t3":
-            bsname, dr = self.t3_with_ho_threshold_control(self,old)
+            bsname, dr = self.t3_with_ho_threshold_control(old)
             new = bsname
-            # if(old != new):
+            if(old != new):
+                self.target_ho += 1
             self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
             self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
             
         # TODO 确定有这种情况?
-        else:
-            bsname, dr = self.t1_dr_control()
-            self.target_prev_bs = bsname
-            self.target_current_bs = dr
-            # self.target_prev_bs = "error_bs"
-            # self.target_current_bs = "error_bs"
+        # else:
+        #     bsname, dr = self.t1_dr_control()
+        #     self.target_prev_bs = bsname
+        #     self.target_current_bs = dr
+        #     # self.target_prev_bs = "error_bs"
+        #     # self.target_current_bs = "error_bs"
 
         # TODO. 更新action. 好像又没有更新. 因为self.target_current_bs并没有改变
-        self.action["tele_action"] = self.target_current_bs
+        # self.action["tele_action"] = self.target_current_bs
 
     def t1_dr_control(self):
         '''
@@ -414,7 +421,7 @@ class MyMDPVehicle(MDPVehicle):
         # my_instance = self.env()
         # result_rf,result_thz = ControlledVehicle.get_rf_thz_info_for_specific_v(self.env._get_bs_assignment_table(),self._get_vehicle_id())
 
-        result_rf, result_thz = self.env.bs_max_name, max_rate(self._get_vehicle_id())  # SharedState.bs_performance_table,
+        result_rf, result_thz = self.env.get_rf_thz_info_for_specific_v(self._get_vehicle_id())  # SharedState.bs_performance_table,
 
         result = pd.concat([result_rf, result_thz])
         bs_max_name, max_rate = self.env.recursive_select_max_bs(result)

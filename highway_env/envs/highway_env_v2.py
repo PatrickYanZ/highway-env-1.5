@@ -302,7 +302,7 @@ class HighwayEnvBS(HighwayEnvFast):
             "termination_agg_fn": 'any',
             'rf_bs_count':5, #20
             'thz_bs_count':20,#100
-            "rf_reward":1,
+            "tele_reward":1,
             "dr_reward": 0.2,
             "ho_reward":-0.2,
             "normalize_reward": True,
@@ -436,7 +436,7 @@ class HighwayEnvBS(HighwayEnvFast):
         info['other_vehicle_collision'] = \
             sum(vehicle.crashed for vehicle in self.road.vehicles if vehicle not in self.controlled_vehicles)
 
-        info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['rf_reward'] for vehicle in self.controlled_vehicles)
+        info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['tele_reward'] for vehicle in self.controlled_vehicles)
         info['agents_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles)
         # info['agents_tr_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) to be implemented
         info['agents_collided'] = tuple(self._agent_is_terminal(vehicle) for vehicle in self.controlled_vehicles)
@@ -492,10 +492,9 @@ class HighwayEnvBS(HighwayEnvFast):
                                 [self.config["collision_reward"],
                                  self.config["high_speed_reward"] + self.config["right_lane_reward"]],
                                 [0, 1])
-        reward += rewards['rf_reward']
+        reward += rewards['tele_reward']
+        reward += rewards['ho_reward']
         reward *= rewards['on_road_reward']
-        reward_tr = reward - rewards['rf_reward']
-        reward_te = rewards['rf_reward']
         return reward #,reward_tr,reward_te
 
     def _agent_rewards(self, action: int, vehicle: Vehicle) -> Dict[Text, float]:
@@ -521,7 +520,7 @@ class HighwayEnvBS(HighwayEnvFast):
 
 
         result_rf = sinr_threshold.loc[vid,current_bs_linkage] # current vehicle dr
-
+        reward_ho = vehicle.target_ho / vehicle.position[0]  # assume this is MyMDPVehicle
 
         # disable thz temporarily
         # thz_dr = thz_sinr_matrix(distance_matrix_thz,vehicles,bss_thz)
@@ -540,7 +539,8 @@ class HighwayEnvBS(HighwayEnvFast):
             "right_lane_reward": lane / max(len(neighbours) - 1, 1),
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "on_road_reward": float(vehicle.on_road),
-            "rf_reward": float(result_rf/10e7),
+            "tele_reward": float(result_rf/10e7),
+            "ho_reward": float(-reward_ho*10),
             # "thz_reward": float(max_rate_thz)
             # "rf_reward": float(1/rf_sinr_specific_vehicle)
         }
