@@ -214,6 +214,30 @@ def thz_sinr_matrix(distance_matrix,vehicles,bss):
     # print(df)
 
     return sinr_matrix,interf_matrix
+
+def sinr_with_threshold(sinr_matrix,bs_assignment):
+    '''
+    Input 
+    1.sinr matrix (merged rf thz version)
+    2.bs assignment matrix
+
+    we devide the sinr matrix to the bss
+ 	                rf1	rf2	rf3	rf4	rf5	rf6	rf7	th1	th2	th3	th4	th5	th6
+sinr	                10	20	30	20	20	40	10	20	30	40	40	30	20
+bss assignment	    4	8	9	9	2	10	3	3	3	2	4	1	3
+data with threshold	    2.5	2.5	3.333333	2.222222	10	4	3.333333	6.666667	10	20	10	30	6.666667
+
+
+
+    Output
+    sinr matrix with threshold
+
+
+    '''
+    sinr_matrix_with_threshold = sinr_matrix.div(bs_assignment.sum(),index=sinr_matrix.columns)
+
+    return sinr_matrix_with_threshold
+
     
 
 # def getInterf(sinr_matrix):

@@ -382,7 +382,7 @@ class MyMDPVehicle(MDPVehicle):
             # self.target_current_bs = "BS2"
 
         elif action_tele == "t3":
-            bsname, dr = self.t3_with_ho_threshold_control()
+            bsname, dr = self.t3_with_ho_threshold_control(self,old)
             new = bsname
             # if(old != new):
             self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
@@ -414,20 +414,23 @@ class MyMDPVehicle(MDPVehicle):
         # my_instance = self.env()
         # result_rf,result_thz = ControlledVehicle.get_rf_thz_info_for_specific_v(self.env._get_bs_assignment_table(),self._get_vehicle_id())
 
-        result_rf, result_thz = self.env.get_rf_thz_info_for_specific_v(self._get_vehicle_id())  # SharedState.bs_performance_table,
+        result_rf, result_thz = self.env.bs_max_name, max_rate(self._get_vehicle_id())  # SharedState.bs_performance_table,
 
-        rbs_max_name, max_rate_rf = self.env.recursive_select_max_bs_rf(result_rf)
+        result = pd.concat([result_rf, result_thz])
+        bs_max_name, max_rate = self.env.recursive_select_max_bs(result)
 
         #temporary disable thz bs ######################################
         # tbs_max_name,max_rate_thz = self.env.recursive_select_max_bs_thz(result_thz)
 
-        tbs_max_name, max_rate_thz = 0, 0
+        # tbs_max_name, max_rate_thz = 0, 0
         # max_rate = np.max(result_rf)
 
-        if (max_rate_rf > max_rate_thz):
-            return rbs_max_name, max_rate_rf
-        else:
-            return tbs_max_name, max_rate_thz
+        # if (max_rate_rf > max_rate_thz):
+        #     return rbs_max_name, max_rate_rf
+        # else:
+        #     return tbs_max_name, max_rate_thz
+
+        return bs_max_name, max_rate
 
     def t2_with_threshold_control(self):
         '''
@@ -445,14 +448,22 @@ class MyMDPVehicle(MDPVehicle):
         thz_dr, thz_interf = thz_sinr_matrix(distance_matrix_thz, vehicles, bss_thz)
         result_thz = thz_dr.loc[vid]
 
+        #concat rf and thz pd series
+        result = pd.concat([result_rf, result_thz])
+
+
         # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
-        current_user_rf = self.env.get_concurrent_user()
-        result_rf = result_rf.divide(current_user_rf)
-        rbs_max_name, max_rate_rf = self.env.recursive_select_max_bs_rf(result_rf)
+        current_user = self.env.get_concurrent_user()
+        try:
+            result = result.divide(current_user)
+        except:
+            print("concat rf and thz pd series and user length is unequal")
+        
+        bs_max_name, max_rate_threshold = self.env.recursive_select_max_bs(result)
 
-        return rbs_max_name, max_rate_rf
+        return bs_max_name, max_rate_threshold
 
-    def t3_with_ho_threshold_control(self):
+    def t3_with_ho_threshold_control(self,current_bs):
         '''
         tele action:
         with bs threshold  and ho penalty
@@ -460,17 +471,63 @@ class MyMDPVehicle(MDPVehicle):
         vid = self._get_vehicle_id()
         distance_matrix_rf, vehicles, bss_rf = self.env._get_distance_rf_matrix()
         distance_matrix_thz, vehicles, bss_thz = self.env._get_distance_thz_matrix()
-        rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf, vehicles, bss_rf)
         # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
+        rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf, vehicles, bss_rf)
         result_rf = rf_dr.loc[vid]  # current vehicle dr
 
         # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
         thz_dr, thz_interf = thz_sinr_matrix(distance_matrix_thz, vehicles, bss_thz)
         result_thz = thz_dr.loc[vid]
 
-        # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
-        current_user_rf = self.env.get_concurrent_user()
-        result_rf = result_rf.divide(current_user_rf)
-        rbs_max_name, max_rate_rf = self.env.recursive_select_max_bs_rf(result_rf)
+        #concat rf and thz pd series
+        result = pd.concat([result_rf, result_thz])
 
-        return rbs_max_name, max_rate_rf
+
+        # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
+        current_user = self.env.get_concurrent_user()
+        try:
+            result = result.divide(current_user)
+        except:
+            print("concat rf and thz pd series and user length is unequal")
+        
+        n_rf = self.env.config['rf_bs_count']
+        n_thz = self.env.config['thz_bs_count']
+        coef_rf = np.ones(n_rf)*0.8
+        coef_thz = np.ones(n_thz)*0.5
+        coef = np.concatenate((coef_rf, coef_thz), axis=None)
+
+        try:
+            result = np.multiply(coef,result) # apply penalty to result
+        except:
+            print("concat coef and result series is unequal")
+
+        # penalty adjustment, we have to revert the current bs coefficient while it does not change
+        coef_adj = 1
+        if(current_bs[0] == 'r'): #  previous bs is rf_bs 
+            coef_adj = 1/0.8
+        else: #  previous bs is thz bs 
+            coef_adj = 1/0.5
+        
+        result.loc[current_bs] *= coef_adj
+
+        bs_max_name, max_rate_threshold = self.env.recursive_select_max_bs(result)
+
+        return bs_max_name, max_rate_threshold
+
+        # vid = self._get_vehicle_id()
+        # distance_matrix_rf, vehicles, bss_rf = self.env._get_distance_rf_matrix()
+        # distance_matrix_thz, vehicles, bss_thz = self.env._get_distance_thz_matrix()
+        # rf_dr, rf_interf = rf_sinr_matrix(distance_matrix_rf, vehicles, bss_rf)
+        # # rf_dr = get_rf_dr(distance_matrix_rf,vehicles,bss_rf)
+        # result_rf = rf_dr.loc[vid]  # current vehicle dr
+
+        # # thz_dr = get_thz_dr(distance_matrix_thz,vehicles,bss_thz)
+        # thz_dr, thz_interf = thz_sinr_matrix(distance_matrix_thz, vehicles, bss_thz)
+        # result_thz = thz_dr.loc[vid]
+
+        # # terminology: for the threshold, we determine how many AVs connect with corresponding BS.
+        # current_user_rf = self.env.get_concurrent_user()
+        # result_rf = result_rf.divide(current_user_rf)
+        # rbs_max_name, max_rate_rf = self.env.recursive_select_max_bs(result_rf)
+
+        # return rbs_max_name, max_rate_rf
