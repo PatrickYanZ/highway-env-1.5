@@ -340,7 +340,7 @@ class HighwayEnvBS(HighwayEnvFast):
             
         
             '''creating RF bss'''
-        for i in range(1, self.config['rf_bs_count']):
+        for i in range(0, self.config['rf_bs_count']): #from 0 to count !
             rf_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
             rf_bs_dist = np.random.randint(300, 10000)
             # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
@@ -350,7 +350,7 @@ class HighwayEnvBS(HighwayEnvFast):
             self.shared_state.rf_bss.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
 
             '''creating thz bss'''
-        for i in range(1, self.config['thz_bs_count']):
+        for i in range(0, self.config['thz_bs_count']):
             thz_bs_lane = np.random.choice([0,8]) #random generate lane number (integer) obstacle_lane = np.random.choice(lanes)
             thz_bs_dist = np.random.randint(300, 10000)
             # self.road.objects.append(RF_BS(self.road, [rf_bs_dist, rf_bs_lane]))
@@ -400,12 +400,22 @@ class HighwayEnvBS(HighwayEnvFast):
         # self.bs_assignment_table = rf_assignment_matrix
         # global bs_assignment_table
         # print('rf_assignment_matrix\n',rf_assignment_matrix)
-        self.shared_state.bs_assignment_table = rf_assignment_matrix
+
+        # self.shared_state.bs_assignment_table = rf_assignment_matrix
         # bs_assignment_table = rf_assignment_matrix
 
+
         total_assignment_matrix = pd.concat([rf_assignment_matrix, thz_assignment_matrix], axis=1) # concate these 2 matrix
-
-
+        self.shared_state.bs_assignment_table = total_assignment_matrix
+        # print('rbs_list\n',rbs_list)
+        # print('tbs_list\n',tbs_list)
+        # print ('self.shared_state.rf_bss_list\n',self.shared_state.rf_bss)
+        # print ('self.shared_state.thz_bss_list\n',self.shared_state.thz_bss)
+        # print ('self.shared_state.thz_bss_list len\n',len(self.shared_state.thz_bss))
+        # print('rf_assignment_matrix\n',rf_assignment_matrix.shape)
+        # print('thz_assignment_matrix\n',thz_assignment_matrix.shape)
+        # print('bs_assignment_table\n',self.shared_state.bs_assignment_table)
+        # print('bs_assignment_table shape is ', self.shared_state.bs_assignment_table.shape)
         #_create_bs_performance_table
         distance_matrix_rf, vehicles,bss_rf = self._get_distance_rf_matrix()
         distance_matrix_thz, vehicles,bss_thz = self._get_distance_thz_matrix()
@@ -652,7 +662,7 @@ class HighwayEnvBS(HighwayEnvFast):
             vehicle_list.append(vid)
             bs_list = []
             for bs in bss:
-                bid = bs._get_rf_bs_id()
+                bid = bs._get_thz_bs_id()
                 bs_list.append(bid)
                 distance_matrix.at[vid,bid]= 0 #default is 0
 
@@ -716,6 +726,7 @@ class HighwayEnvBS(HighwayEnvFast):
         bss = self.shared_state.thz_bss
         vehicles = self.shared_state.vehicles
         # vehicles = self.controlled_vehicles
+        # print('thz bss',bss,len(bss))
         distance_matrix = pd.DataFrame() 
 
         vehicle_list = []
@@ -830,8 +841,8 @@ class HighwayEnvBS(HighwayEnvFast):
     def get_config(self, attr):
         return self.config[attr]
     
-    def get_current_user(self):
-        return self.get_concurrent_user(self)
+    # def get_current_user(self):
+    #     return self.get_concurrent_user(self)
 
     def get_vacant_bs_list(self): # previously get_vacant_rf_bs_list extend to the thz
         # Based on the concurrent user, we generate how many vacants on each base stations
@@ -843,18 +854,25 @@ tupple	    5	5	5	5	5	5	5	5	5	5
 result	    -2	1	-1	1	2	3	0	0	2	1
 
         '''
-        n_rf = self.config['rf_bs_count']
-        n_thz = self.config['thz_bs_count']
+        # n_rf = self.config['rf_bs_count']
+        # n_thz = self.config['thz_bs_count']
+        n_rf = len(self.shared_state.rf_bss)
+        n_thz = len(self.shared_state.thz_bss)
         tupples_rf = np.ones(n_rf)*10
         tupples_thz = np.ones(n_thz)*5
         tupples = np.concatenate((tupples_rf, tupples_thz), axis=None)
         result = tupples
         current_users = self.get_concurrent_user()
+        print('bs_assignment_table\n',self.shared_state.bs_assignment_table)
+        print('tupples\n',tupples)
+        print('current_users\n',current_users)
         try:
             result = np.subtract(tupples,current_users)
+            result1 = pd.Series(result,index=current_users.index)
         except:
-            print("current_users and tupples length is unequal, current user and tupples length are", len(current_users),len(tupples))
-        return result
+            print("current_users and tupples length is unequal, current users and tupples length are", len(current_users),len(tupples))
+            # result = pd.Series(result,index=current_users.index)
+        return result1
 
         # # rf_bs_count = self.config['rf_bs_count']
         # # my_instance = HighwayEnvBS()

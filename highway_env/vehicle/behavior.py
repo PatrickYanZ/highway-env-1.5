@@ -8,6 +8,12 @@ from highway_env.vehicle.controller import ControlledVehicle
 from highway_env import utils
 from highway_env.vehicle.kinematics import Vehicle
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from highway_env.envs.highway_env_v2 import HighwayEnvBS
+from ..sinr import *
+from ..Shared import *
+
 
 class IDMVehicle(ControlledVehicle):
     """
@@ -482,3 +488,53 @@ class DefensiveVehicle(LinearVehicle):
     ACCELERATION_PARAMETERS = [MERGE_ACC_GAIN / ((1 - MERGE_VEL_RATIO) * MERGE_TARGET_VEL),
                                MERGE_ACC_GAIN / (MERGE_VEL_RATIO * MERGE_TARGET_VEL),
                                2.0]
+
+
+class IDMVehicleWithTelecom(IDMVehicle):
+    def __init__(self,
+                road: Road,
+                position: Vector,
+                heading: float = 0,
+                speed: float = 0,
+                target_lane_index: int = None,
+                target_speed: float = None,
+                route: Route = None,
+                enable_lane_change: bool = True,
+                timer: float = None,
+                data: dict = None,
+                env: 'HighwayEnvBS' = None,
+                target_current_bs: str = None):
+        super().__init__(road, position, heading, speed, target_lane_index, target_speed, route,
+                        enable_lane_change, timer,target_current_bs)
+        self.data = data if data is not None else {}
+        self.collecting_data = True
+
+        assert env is not None, "MyMDPVehicle's env can not be None"
+        self.env = env
+        self.target_current_bs = target_current_bs #or 'initial bs'
+
+
+    def act(self, action: Union[dict, str] = None):
+        if self.collecting_data:
+            self.collect_data()
+        super().act(action)
+
+        vid = self._get_vehicle_id()
+        old = self.target_current_bs
+
+        bs_max_name, max_rate = self._find_closest_bs()
+        new = bs_max_name
+        self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
+        self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
+        
+        self.target_current_bs = bs_max_name
+
+    def _find_closest_bs(self):
+        result_rf, result_thz = self.env.get_rf_thz_info_for_specific_v(self._get_vehicle_id())  # SharedState.bs_performance_table,
+
+        result = pd.concat([result_rf, result_thz])
+        bs_max_name, max_rate = self.env.recursive_select_max_bs(result)
+        return bs_max_name, max_rate
+
+
+

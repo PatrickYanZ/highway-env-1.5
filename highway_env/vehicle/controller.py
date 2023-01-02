@@ -393,6 +393,8 @@ class MyMDPVehicle(MDPVehicle):
                 self.target_ho += 1
             self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
             self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
+        
+        self.target_current_bs = bsname
             
         # TODO 确定有这种情况?
         # else:
@@ -512,10 +514,13 @@ class MyMDPVehicle(MDPVehicle):
         print('current_bs',current_bs)
         if(str(current_bs)[0] == 'r'): #  previous bs is rf_bs 
             coef_adj = 1/0.8
-        else: #  previous bs is thz bs 
+            result.loc[current_bs] *= coef_adj
+        elif (str(current_bs)[0] == 't'): #  previous bs is thz bs 
             coef_adj = 1/0.5
+            result.loc[current_bs] *= coef_adj
         
-        result.loc[current_bs] *= coef_adj
+        # for the first step there is no connection before
+        # result.loc[current_bs] *= coef_adj
 
         bs_max_name, max_rate_threshold = self.env.recursive_select_max_bs(result)
 
