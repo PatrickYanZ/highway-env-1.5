@@ -7,12 +7,11 @@ from highway_env.road.road import Road, LaneIndex, Route
 from highway_env.utils import Vector
 from highway_env.vehicle.kinematics import Vehicle
 
-from highway_env.envs import highway_env
-from highway_env.envs.common import abstract
+# from highway_env.envs import highway_env
+# from highway_env.envs.common import abstract
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from highway_env.envs.highway_env import HighwayEnvBS
-
+    from highway_env.envs.highway_env_v2 import HighwayEnvBS
 from ..sinr import *
 from ..Shared import *
 
@@ -343,7 +342,7 @@ class MyMDPVehicle(MDPVehicle):
 
         # TODO. 这里target_current_bs 和 target_prev_bs确定没问题?
         # self.target_current_bs = target_prev_bs or 'initial bs'
-        self.target_current_bs = target_current_bs or 'initial bs'
+        self.target_current_bs = target_current_bs #or 'initial bs'
         self.target_ho = target_ho
 
         assert env is not None, "MyMDPVehicle's env can not be None"
@@ -466,9 +465,9 @@ class MyMDPVehicle(MDPVehicle):
         except:
             print("concat rf and thz pd series and user length is unequal")
         
-        bs_max_name, max_rate_threshold = self.env.recursive_select_max_bs(result)
+        bs_max_name, max_rate = self.env.recursive_select_max_bs(result)
 
-        return bs_max_name, max_rate_threshold
+        return bs_max_name, max_rate
 
     def t3_with_ho_threshold_control(self,current_bs):
         '''
@@ -510,7 +509,8 @@ class MyMDPVehicle(MDPVehicle):
 
         # penalty adjustment, we have to revert the current bs coefficient while it does not change
         coef_adj = 1
-        if(current_bs[0] == 'r'): #  previous bs is rf_bs 
+        print('current_bs',current_bs)
+        if(str(current_bs)[0] == 'r'): #  previous bs is rf_bs 
             coef_adj = 1/0.8
         else: #  previous bs is thz bs 
             coef_adj = 1/0.5

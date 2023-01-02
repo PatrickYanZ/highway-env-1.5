@@ -234,7 +234,7 @@ data with threshold	    2.5	2.5	3.333333	2.222222	10	4	3.333333	6.666667	10	20	1
 
 
     '''
-    sinr_matrix_with_threshold = sinr_matrix.div(bs_assignment.sum(),index=sinr_matrix.columns)
+    sinr_matrix_with_threshold = sinr_matrix.div(bs_assignment.sum(), axis=0)#,index=sinr_matrix.columns
 
     return sinr_matrix_with_threshold
 

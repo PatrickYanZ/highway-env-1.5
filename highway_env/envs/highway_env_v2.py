@@ -768,14 +768,14 @@ class HighwayEnvBS(HighwayEnvFast):
         return result_rf,result_thz
 
     # TODO. action
-    def recursive_select_max_bs(self, result):
+    def recursive_select_max_bs(self,result):
         i = 0
         # print("result rf\n",result_rf)
-        rf_vacant_list = self.get_vacant_bs_list()
+        bs_vacant_list = self.get_vacant_bs_list()
         bs_max_name = result.idxmax()
         length = result.size 
         while(i < length):
-            if self.check_connect_with_bs(rf_vacant_list, bs_max_name):
+            if self.check_connect_with_bs(bs_vacant_list, bs_max_name):
                 bs_max_name = result.idxmax()
                 max_rate = np.max(result)
                 break
@@ -921,9 +921,19 @@ result	    -2	1	-1	1	2	3	0	0	2	1
 
 
 
+# register(
+#     id='highway-bs-v1',
+#     entry_point='highway_env.envs:HighwayEnvBS',
+# )
+
+# register(
+#     id='highway-bs-v1',
+#     entry_point='highway_env.envs.highway_env_v2:HighwayEnvBS',
+# )
+
 register(
     id='highway-bs-v1',
-    entry_point='highway_env.envs:HighwayEnvBS',
+    entry_point='highway_env.envs.highway_env_v2:HighwayEnvBS',
 )
 
 register(
