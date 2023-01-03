@@ -306,6 +306,7 @@ class HighwayEnvBS(HighwayEnvFast):
             "dr_reward": 0.2,
             "ho_reward":-0.2,
             "normalize_reward": True,
+            "other_vehicles_type": "highway_env.vehicle.behavior.IDMVehicleWithTelecom" #added other vehicles telecom feature
         })
         return conf
 
