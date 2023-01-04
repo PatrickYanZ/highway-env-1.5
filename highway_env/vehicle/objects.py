@@ -177,7 +177,6 @@ class RoadObject(ABC):
     def __repr__(self):
         return self.__str__()
 
-    # 难以理解的id获取方式. 非常难以理解
     def _get_rf_bs_id(self):
         # test_str = RoadObject.__str__(self)
         # m = re.search(r'\#(.*?)\:', test_str).group(1)
@@ -222,7 +221,7 @@ class RF_BS(RoadObject):
 
 class THz_BS(RoadObject):
 
-    """THz BSs of certain areas on the road that must be reached."""
+    """Landmarks of certain areas on the road that must be reached."""
 
     def __init__(self, road, position: Sequence[float], heading: float = 0, speed: float = 0):
         super().__init__(road, position, heading, speed)

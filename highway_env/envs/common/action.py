@@ -312,7 +312,7 @@ class DiscreteDualObjectMetaAction(ActionType):
 
     @property
     def vehicle_class(self) -> Callable:
-        return functools.partial(self.vehicle_type, target_speeds=self.target_speeds, env=self.env)
+        return functools.partial(self.vehicle_type, target_speeds=self.target_speeds)
 
     def act(self, action: int) -> None:
         # 建议action用二元组表示(神经网络的输出为2个元素): [交通动作, 通信动作]. 尚未实现

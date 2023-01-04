@@ -22,7 +22,6 @@ Observation = np.ndarray
 class HighwayEnv(AbstractEnv):
     """
     A highway driving environment.
-
     The vehicle is driving on a straight highway with several lanes, and is rewarded for reaching a high speed,
     staying on the rightmost lanes and avoiding collisions.
     """
@@ -306,7 +305,6 @@ class HighwayEnvBS(HighwayEnvFast):
             "dr_reward": 0.2,
             "ho_reward":-0.2,
             "normalize_reward": True,
-            "other_vehicles_type": "highway_env.vehicle.behavior.IDMVehicleWithTelecom" #added other vehicles telecom feature
         })
         return conf
 
@@ -578,9 +576,7 @@ class HighwayEnvBS(HighwayEnvFast):
         rb208    2968.789306
         rb160    6204.290285
         rb112    2258.299791
-
         return rb544, 1544.227621
-
         '''
         bs_min_name = ser.idxmin()
         min_rate = np.min(ser)
@@ -830,11 +826,9 @@ class HighwayEnvBS(HighwayEnvFast):
         AV7	0	0	0	0	1	0	1	0	0	1
         AV8	1	0	1	0	0	1	1	0	1	1
         AV9	0	0	1	1	1	1	0	1	0	1
-
         RETURN
         bs1	bs2	bs3	bs4	bs5	bs6	bs7	bs8	bs9	bs10
         5	2	6	7	5	4	6	3	5	4
-
         '''
         # print(self.bs_assignment_table.sum())
         return self.shared_state.bs_assignment_table.sum()
@@ -848,12 +842,10 @@ class HighwayEnvBS(HighwayEnvFast):
     def get_vacant_bs_list(self): # previously get_vacant_rf_bs_list extend to the thz
         # Based on the concurrent user, we generate how many vacants on each base stations
         '''
-
             bs1	bs2	bs3	bs4	bs5	bs6	bs7	bs8	bs9	bs10
 currentuser	7	4	6	4	3	2	5	5	3	4
 tupple	    5	5	5	5	5	5	5	5	5	5
 result	    -2	1	-1	1	2	3	0	0	2	1
-
         '''
         # n_rf = self.config['rf_bs_count']
         # n_thz = self.config['thz_bs_count']

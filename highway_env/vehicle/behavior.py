@@ -7,13 +7,10 @@ from highway_env.utils import Vector
 from highway_env.vehicle.controller import ControlledVehicle
 from highway_env import utils
 from highway_env.vehicle.kinematics import Vehicle
-
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from highway_env.envs.highway_env_v2 import HighwayEnvBS
-from ..sinr import *
-from ..Shared import *
-
+    from highway_env.envs.highway_env import HighwayEnvBS
+import pandas as pd
 
 class IDMVehicle(ControlledVehicle):
     """
@@ -489,9 +486,10 @@ class DefensiveVehicle(LinearVehicle):
                                MERGE_ACC_GAIN / (MERGE_VEL_RATIO * MERGE_TARGET_VEL),
                                2.0]
 
-
+# here
 class IDMVehicleWithTelecom(IDMVehicle):
     def __init__(self,
+                id: int,
                 road: Road,
                 position: Vector,
                 heading: float = 0,
@@ -502,16 +500,14 @@ class IDMVehicleWithTelecom(IDMVehicle):
                 enable_lane_change: bool = True,
                 timer: float = None,
                 data: dict = None,
-                env: 'HighwayEnvBS' = None,
-                target_current_bs: str = None):
+                target_current_bs: int = None):
         super().__init__(road, position, heading, speed, target_lane_index, target_speed, route,
-                        enable_lane_change, timer,target_current_bs)
+                        enable_lane_change, timer)
         self.data = data if data is not None else {}
         self.collecting_data = True
+        self.id = id
 
-        assert env is not None, "MyMDPVehicle's env can not be None"
-        self.env = env
-        self.target_current_bs = target_current_bs #or 'initial bs'
+        self.target_current_bs = target_current_bs # or 'initial bs'
 
 
     def act(self, action: Union[dict, str] = None):
@@ -519,22 +515,31 @@ class IDMVehicleWithTelecom(IDMVehicle):
             self.collect_data()
         super().act(action)
 
-        vid = self._get_vehicle_id()
         old = self.target_current_bs
-
-        bs_max_name, max_rate = self._find_closest_bs()
-        new = bs_max_name
-        self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
-        self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
+        new = self._find_closest_bs()
         
-        self.target_current_bs = bs_max_name
+        self.road.new_connect(old, new)
+        # self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
+        # self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
+
+        self.target_current_bs = new
+
+    def collect_data(self):
+        pass
 
     def _find_closest_bs(self):
+        vid = self.id
+        aim_bs = self.road.get_total_dr()[vid]
+        rest = self.road.get_conn_rest()
+        
+        # 以下部分替代了 HighwayEnvBS.recursive_select_max_bs() 函数
+        aim_bs_mm = 10 + aim_bs.max() - aim_bs.min()
+        vacant = aim_bs - (rest <= 0) * aim_bs_mm
+        bid = np.argmax(vacant)
+        return bid
+        
         result_rf, result_thz = self.env.get_rf_thz_info_for_specific_v(self._get_vehicle_id())  # SharedState.bs_performance_table,
 
         result = pd.concat([result_rf, result_thz])
         bs_max_name, max_rate = self.env.recursive_select_max_bs(result)
         return bs_max_name, max_rate
-
-
-

@@ -7,11 +7,12 @@ from highway_env.road.road import Road, LaneIndex, Route
 from highway_env.utils import Vector
 from highway_env.vehicle.kinematics import Vehicle
 
-# from highway_env.envs import highway_env
-# from highway_env.envs.common import abstract
+from highway_env.envs import highway_env
+from highway_env.envs.common import abstract
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from highway_env.envs.highway_env_v2 import HighwayEnvBS
+    from highway_env.envs.highway_env import HighwayEnvBS
+
 from ..sinr import *
 from ..Shared import *
 
@@ -327,33 +328,29 @@ class MDPVehicle(ControlledVehicle):
 class MyMDPVehicle(MDPVehicle):
 
     def __init__(self,
+                 id: int,
                  road: Road,
                  position: List[float],
                  heading: float = 0,
                  speed: float = 0,
-                 env: 'HighwayEnvBS' = None,
                  target_lane_index: Optional[LaneIndex] = None,
                  target_speed: Optional[float] = None,
                  target_speeds: Optional[Vector] = None,
-                 target_current_bs: Optional[str] = None,
-                 target_prev_bs: str = None,
+                 target_current_bs: Optional[int] = None,
                  target_ho: int = 0,
                  route: Optional[Route] = None) -> None:
 
-        # TODO. 这里target_current_bs 和 target_prev_bs确定没问题?
-        # self.target_current_bs = target_prev_bs or 'initial bs'
-        self.target_current_bs = target_current_bs #or 'initial bs'
+        self.target_current_bs = target_current_bs
         self.target_ho = target_ho
+        self.id = id
 
-        assert env is not None, "MyMDPVehicle's env can not be None"
-        self.env = env
         super().__init__(road, position, heading, speed, target_lane_index,
                          target_speed, target_speeds, route)
 
     def act(self, action = None) -> None:
         
         if action is None:
-            super().act(action)
+            super().act()
             self.action["tele_action"] = self.target_current_bs
             return
 
@@ -361,54 +358,41 @@ class MyMDPVehicle(MDPVehicle):
         # 交通学的action
         super().act(action)
 
-        # 通讯的action. TODO. 逻辑有问题
-        vid = self._get_vehicle_id()
+        # 通讯的action.
         old = self.target_current_bs
+        new = old
         if action_tele == "t1":  # t1_dr_control
-            bsname, dr = self.t1_dr_control()
+            new = self.t1_dr_control()
             # self.target_prev_bs = bsname
-            new = bsname
             # self.target_current_bs = bsname
             # update the sinr matrix
-            if(old != new):
-                self.target_ho += 1
-            self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
-            self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
-
+            # if(old != new):
+            #     self.target_ho += 1
+            # self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
+            # self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
         elif action_tele == "t2":
-            bsname, dr = self.t2_with_threshold_control()
-            new = bsname
-            if(old != new):
-                self.target_ho += 1
-            self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
-            self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
+            new =  self.t2_with_threshold_control()
+            # if(old != new):
+            #     self.target_ho += 1
+            # self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
+            # self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
 
             # self.target_prev_bs = "BS2"
             # self.target_current_bs = "BS2"
-
         elif action_tele == "t3":
-            bsname, dr = self.t3_with_ho_threshold_control(old)
-            new = bsname
-            if(old != new):
-                self.target_ho += 1
-            self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
-            self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
-        
-        self.target_current_bs = bsname
-            
-        # TODO 确定有这种情况?
-        # else:
-        #     bsname, dr = self.t1_dr_control()
-        #     self.target_prev_bs = bsname
-        #     self.target_current_bs = dr
-        #     # self.target_prev_bs = "error_bs"
-        #     # self.target_current_bs = "error_bs"
+            new = self.t3_with_ho_threshold_control(old)
+            # self.env.shared_state.bs_assignment_table.loc[[vid], [old]] = 0
+            # self.env.shared_state.bs_assignment_table.loc[[vid], [new]] = 1
 
-        # TODO. 更新action. 好像又没有更新. 因为self.target_current_bs并没有改变
-        # self.action["tele_action"] = self.target_current_bs
+        if(old is not None and old != new):
+            self.target_ho += 1
+        self.road.new_connect(old, new)
+        self.target_current_bs = new
+        self.action["tele_action"] = self.target_current_bs
 
     def t1_dr_control(self):
         '''
+        获得距离, 根据距离计算信号强度, 根据连接数量选择最大的可行信号
         Input T1
         Find the dr table
         connect with the maximum data rate BS under the BS capacity. 
@@ -421,6 +405,18 @@ class MyMDPVehicle(MDPVehicle):
         # print("vid is ++++++++++",self._get_vehicle_id)
         # my_instance = self.env()
         # result_rf,result_thz = ControlledVehicle.get_rf_thz_info_for_specific_v(self.env._get_bs_assignment_table(),self._get_vehicle_id())
+
+        vid = self.id
+        # 不要对aim_bs原地修改
+        aim_bs = self.road.get_total_dr()[vid]
+        rest = self.road.get_conn_rest()
+        
+        # 以下部分替代了 HighwayEnvBS.recursive_select_max_bs() 函数
+        aim_bs_mm = 10 + aim_bs.max() - aim_bs.min()
+        vacant = aim_bs - (rest <= 0) * aim_bs_mm
+        bid = np.argmax(vacant)
+        # bid是基站的id号
+        return bid
 
         result_rf, result_thz = self.env.get_rf_thz_info_for_specific_v(self._get_vehicle_id())  # SharedState.bs_performance_table,
 
@@ -445,6 +441,18 @@ class MyMDPVehicle(MDPVehicle):
         tele action:
         with bs threshold only 
         '''
+        vid = self.id
+        aim_bs = self.road.get_total_dr()[vid]
+        rest = self.road.get_conn()
+
+        # rest + 1e-8: 防止出现 除0 操作
+        aim_bs = aim_bs / (rest + 1e-8)
+        
+        aim_bs_mm = 10 + aim_bs.max() - aim_bs.min()
+        vacant = aim_bs - (rest <= 0) * aim_bs_mm
+        bid = np.argmax(vacant)
+        return bid
+        
         vid = self._get_vehicle_id()
         distance_matrix_rf, vehicles, bss_rf = self.env._get_distance_rf_matrix()
         distance_matrix_thz, vehicles, bss_thz = self.env._get_distance_thz_matrix()
@@ -467,15 +475,34 @@ class MyMDPVehicle(MDPVehicle):
         except:
             print("concat rf and thz pd series and user length is unequal")
         
-        bs_max_name, max_rate = self.env.recursive_select_max_bs(result)
+        bs_max_name, max_rate_threshold = self.env.recursive_select_max_bs(result)
 
-        return bs_max_name, max_rate
+        return bs_max_name, max_rate_threshold
 
-    def t3_with_ho_threshold_control(self,current_bs):
+    def t3_with_ho_threshold_control(self, current_bs):
         '''
         tele action:
         with bs threshold  and ho penalty
         '''
+
+        vid = self.id
+        aim_bs = self.road.get_total_dr()[vid]
+        rest = self.road.get_conn()
+
+        aim_bs = aim_bs / (rest + 1e-8)
+        
+        n_rf = self.road.rf_bs_count
+        n_thz = self.road.thz_bs_count
+        coef = np.array([0.8] * n_rf + [0.5] * n_thz)
+        if current_bs is not None:
+            coef[current_bs] = 1
+        aim_bs = coef * aim_bs
+        
+        aim_bs_mm = 10 + aim_bs.max() - aim_bs.min()
+        vacant = aim_bs - (rest <= 0) * aim_bs_mm
+        bid = np.argmax(vacant)
+        return bid
+
         vid = self._get_vehicle_id()
         distance_matrix_rf, vehicles, bss_rf = self.env._get_distance_rf_matrix()
         distance_matrix_thz, vehicles, bss_thz = self.env._get_distance_thz_matrix()
@@ -511,7 +538,6 @@ class MyMDPVehicle(MDPVehicle):
 
         # penalty adjustment, we have to revert the current bs coefficient while it does not change
         coef_adj = 1
-        print('current_bs',current_bs)
         if(str(current_bs)[0] == 'r'): #  previous bs is rf_bs 
             coef_adj = 1/0.8
             result.loc[current_bs] *= coef_adj
@@ -519,7 +545,6 @@ class MyMDPVehicle(MDPVehicle):
             coef_adj = 1/0.5
             result.loc[current_bs] *= coef_adj
         
-        # for the first step there is no connection before
         # result.loc[current_bs] *= coef_adj
 
         bs_max_name, max_rate_threshold = self.env.recursive_select_max_bs(result)
