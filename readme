@@ -1,0 +1,18 @@
+大量修改的文件:
+highway-env-1.5\highway_env\envs\highway_env.py
+    HighwayEnvBS: 去掉了shared_state, 基站信息由BSRoad维护
+    去除了大量无用函数, 标记有No longer used和not used的函数都可以删除
+highway-env-1.5\highway_env\road\road.py
+    添加了类BSRoad: 基站的信息维护由HighwayEnvBS转移到了此处, 替代了HighwayEnvBS.shared_state
+highway-env-1.5\highway_env\vehicle\behavior.py
+    修改了IDMVehicleWithTelecom 的 act() 和 _find_closest_bs(): 基于BSRoad进行相关计算
+highway-env-1.5\highway_env\vehicle\controller.py
+    修改同behavior.py, 基于BSRoad进行相关计算, 优化了计算过程
+highway-env-1.5\highway_env\sinr.py
+    rf_sinr_matrix()
+    thz_sinr_matrix()
+    优化了计算过程, 这两个函数貌似的一样的?
+
+少量修改的文件:
+highway-env-1.5\highway_env\envs\common\action.py
+    line 315

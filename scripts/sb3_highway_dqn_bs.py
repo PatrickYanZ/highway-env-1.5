@@ -1,9 +1,14 @@
+import sys
+sys.path.append(r'G:\00temp\code\highway-env-1.5')
+
 import gym
 from gym.wrappers import RecordVideo
 from stable_baselines3 import DQN
 
 import highway_env
 # from highway_env.envs.highway_obstacle_env import *
+
+from highway_env.callback import TelecomTransportCallback
 
 TRAIN = True
 
@@ -28,7 +33,7 @@ if __name__ == '__main__':
 
     # Train the model
     if TRAIN:
-        model.learn(total_timesteps=int(2e2))#2e4
+        model.learn(total_timesteps=int(1e2),callback=TelecomTransportCallback())#2e4
         model.save("highway_dqn/model/bs")
         del model
 

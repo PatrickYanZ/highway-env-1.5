@@ -198,6 +198,7 @@ class KinematicObservation(ObservationType):
                     df[feature] = np.clip(df[feature], -1, 1)
         return df
 
+    # here
     def observe(self) -> np.ndarray:
         if not self.env.road:
             return np.zeros(self.space().shape)
@@ -205,17 +206,17 @@ class KinematicObservation(ObservationType):
         # Add ego-vehicle
         df = pd.DataFrame.from_records([self.observer_vehicle.to_dict()])[self.features]
         # Add nearby traffic
-        close_vehicles = self.env.road.close_vehicles_to(self.observer_vehicle,
-                                                         self.env.PERCEPTION_DISTANCE,
-                                                         count=self.vehicles_count - 1,
-                                                         see_behind=self.see_behind,
-                                                         sort=self.order == "sorted")
+        close_vehicles = self.env.road.close_vehicles_to(
+            self.observer_vehicle, self.env.PERCEPTION_DISTANCE, count=self.vehicles_count - 1,
+            see_behind=self.see_behind, sort=self.order == "sorted")
         if close_vehicles:
             origin = self.observer_vehicle if not self.absolute else None
-            df = df.append(pd.DataFrame.from_records(
-                [v.to_dict(origin, observe_intentions=self.observe_intentions)
-                 for v in close_vehicles[-self.vehicles_count + 1:]])[self.features],
-                           ignore_index=True)
+            _t = [v.to_dict(origin, observe_intentions=self.observe_intentions) for v in close_vehicles[-self.vehicles_count + 1:]]
+            df = pd.concat([df, pd.DataFrame.from_records(_t)[self.features]], ignore_index=True)
+            # df = df.append(pd.DataFrame.from_records(
+            #     [v.to_dict(origin, observe_intentions=self.observe_intentions)
+            #      for v in close_vehicles[-self.vehicles_count + 1:]])[self.features],
+            #                ignore_index=True)
 
             # df2 = (pd.DataFrame.from_records(
             #     [v.to_dict(origin, observe_intentions=self.observe_intentions)
@@ -232,7 +233,8 @@ class KinematicObservation(ObservationType):
         # Fill missing rows
         if df.shape[0] < self.vehicles_count:
             rows = np.zeros((self.vehicles_count - df.shape[0], len(self.features)))
-            df = df.append(pd.DataFrame(data=rows, columns=self.features), ignore_index=True)
+            df = pd.concat([df, pd.DataFrame(data=rows, columns=self.features)], ignore_index=True)
+            # df = df.append(pd.DataFrame(data=rows, columns=self.features), ignore_index=True)
         # Reorder
         df = df[self.features]
         obs = df.values.copy()

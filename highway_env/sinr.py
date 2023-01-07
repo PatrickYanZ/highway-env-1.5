@@ -58,11 +58,12 @@ def generate_exponential_matrix(miu,m,n):
     Generate Exponential matrix with mean miu with m rows and n columns
     ref https://www.geeksforgeeks.org/numpy-random-exponential-in-python/
     """
-    exponential_matrix = []
-    for i in range(m):
-        row = np.random.exponential(miu, n)
-        exponential_matrix.append(row)
-    return exponential_matrix
+    return np.random.exponential(miu, (m, n))
+    # exponential_matrix = []
+    # for i in range(m):
+    #     row = np.random.exponential(miu, n)
+    #     exponential_matrix.append(row)
+    # return exponential_matrix
 
 def sum_of_each_row(matrix):
     # arr = []
@@ -72,8 +73,7 @@ def sum_of_each_row(matrix):
     # return arr
     return matrix.sum(axis=0)
 
-
-def rf_sinr_matrix(distance_matrix,vehicles,bss):
+def rf_sinr_matrix__raw(distance_matrix,vehicles,bss):
     """
     Convert distance matrix to sinr matrix
 
@@ -84,9 +84,9 @@ def rf_sinr_matrix(distance_matrix,vehicles,bss):
     # NU = len(distance_matrix) 
     # NRF = len(distance_matrix[0])
 
-    d_matrix = np.array(distance_matrix)
+    d_matrix = np.array(distance_matrix)    # [v, bs]
 
-    fadeRand = generate_exponential_matrix(1,NRF,NU)
+    fadeRand = generate_exponential_matrix(1,NRF,NU)    # [bs, v]
     # print("fade rand shape",np.shape(fadeRand))
 
     #signal matrix for RF
@@ -106,13 +106,14 @@ def rf_sinr_matrix(distance_matrix,vehicles,bss):
      SRF = np.linalg.matrix_power(SRF,-1*alpha)
     '''
     # SRF = fractional_matrix_power(SRF,-1*alpha)
-    SRF = SRF **(-1*alpha) #fractional_matrix_power(distance_matrix_thz,2)
+    SRF = SRF ** (-1 * alpha) #fractional_matrix_power(distance_matrix_thz,2)
     # print("srf 4",np.shape(SRF))
     
     # interference : interf=repmat(sum(SRF,1),NRF,1)-SRF; %interference for RF
-    sum_srf = sum_of_each_row(SRF)
+    sum_srf = sum_of_each_row(SRF)  # [v]
     # print("sum_srf",np.shape(sum_srf))
 
+    # np.tile(sum_srf, (NRF, 1))
     interf=np.matlib.repmat(sum_srf,NRF,1)
     # print("interf",np.shape(interf))
 
@@ -144,77 +145,82 @@ def rf_sinr_matrix(distance_matrix,vehicles,bss):
     return sinr_matrix,interf_matrix
 
 
-def thz_sinr_matrix(distance_matrix,vehicles,bss):
+def rf_sinr_matrix(distance_matrix):
     """
+    Convert distance matrix to sinr matrix
+
+    """
+    NU,NRF = distance_matrix.shape # row is vehicle, column is rf bs
+
+    d_matrix = np.array(distance_matrix)    # [v, bs]
+
+    fadeRand = generate_exponential_matrix(1,NRF,NU)    # [bs, v]
+
+    #signal matrix for RF
+    # SRF = gammaI*fadeRand*PR*d_matrix
+    SRF = gammaI * PR * fadeRand * d_matrix.T
+
+    SRF = SRF ** (-1 * alpha) # [bs, v]
+
+    interf = SRF.sum(axis=0) - SRF # [bs, v]
+    
+    NP=10e-10 #(10) ** (-10)
+    RPrAllu1 = Wr * np.log2(SRF / (NP + interf) + 1).T # [v, bs]
+    interf = interf.T # [v, bs]
+
+    sinr_matrix = RPrAllu1
+    interf_matrix = interf
+    # print(df)
+
+    return sinr_matrix,interf_matrix
+
+
+def thz_sinr_matrix(distance_matrix):
+    """
+    # 这个函数好像和rf_sinr_matrix是一样的?
     Convert distance matrix to sinr matrix
 
     """
     
     NU,NRF = distance_matrix.shape # row is vehicle, column is rf bs
-    # print(distance_matrix)
-    # print("distance_matrix.shape",NU,NRF )
-    # NU = len(distance_matrix) 
-    # NRF = len(distance_matrix[0])
 
     d_matrix = np.array(distance_matrix)
 
     fadeRand = generate_exponential_matrix(1,NRF,NU)
-    # print("fade rand shape",np.shape(fadeRand))
 
-    #signal matrix for RF
-    # SRF = gammaI*fadeRand*PR*d_matrix
-    # SRF = np.dot(gammaI,fadeRand)
-    SRF = np.multiply(gammaI,fadeRand)
-    # print("srf 1",np.shape(SRF))
+    SRF = PR * gammaI * fadeRand * d_matrix.T
 
-    # SRF = np.dot(SRF,PR)
-    SRF = np.multiply(SRF,PR)
-    # print("srf 2",np.shape(SRF))
-
-    # SRF = np.dot(SRF,d_matrix)
-    SRF = np.multiply(SRF,np.transpose(d_matrix))
-    # print("srf 3",np.shape(SRF))
-    '''
-     SRF = np.linalg.matrix_power(SRF,-1*alpha)
-    '''
-    # SRF = fractional_matrix_power(SRF,-1*alpha)
-    SRF = SRF **(-1*alpha) #fractional_matrix_power(distance_matrix_thz,2)
-    # print("srf 4",np.shape(SRF))
+    SRF = SRF ** (-1*alpha) #fractional_matrix_power(distance_matrix_thz,2)
     
-    # interference : interf=repmat(sum(SRF,1),NRF,1)-SRF; %interference for RF
-    sum_srf = sum_of_each_row(SRF)
-    # print("sum_srf",np.shape(sum_srf))
+    interf = SRF.sum(axis=0) - SRF
 
-    interf=np.matlib.repmat(sum_srf,NRF,1)
-    # print("interf",np.shape(interf))
-
-    interf=np.subtract(interf, SRF)
-    # print("interf shape",np.shape(interf))
-    # print("interf",interf)
-
-    #power from all base-stations to all users
     NP=10e-10 #(10) ** (-10)
-    RPrAllu1 = Wr * np.log2(np.add(1,np.divide(SRF,np.add(NP, interf))))
-    # print(RPrAllu1)
-    # print(RPrAllu1.shape)
-    RPrAllu1 = np.transpose(RPrAllu1)
-    interf=np.transpose(interf)
-    # print(RPrAllu1.shape)
+    RPrAllu1 = Wr * np.log2(1 + SRF / (NP + interf)).T
+    interf = interf.T
 
-
-    ## column row names should be recovered ### 
-    # print(distance_matrix) 
-    # print(d_matrix)
-    # print(RPrAllu1)
-    # print('vehicle list is ', vehicles,)
-    # print('bs_list is',bss)
-
-    sinr_matrix = pd.DataFrame(RPrAllu1 , columns = bss, index = vehicles)
-    interf_matrix = pd.DataFrame(interf , columns = bss, index = vehicles)
-    # print(df)
+    sinr_matrix = RPrAllu1
+    interf_matrix = interf
 
     return sinr_matrix,interf_matrix
-    
+
+def sinr_with_threshold(sinr_matrix, bs_assignment):
+    ''' 
+    Input 
+    1.sinr matrix (merged rf thz version)
+    2.bs assignment matrix
+    we devide the sinr matrix to the bss
+                            rf1    rf2    rf3    rf4    rf5   rf6    rf7    th1    th2    th3    th4    th5    th6
+    sinr                    10     20     30     20     20    40     10     20     30     40     40     30     20
+    bss assignment          4      8      9      9      2     10     3      3      3      2      4      1      3
+    data with threshold	    2.5   2.5     10/3   20/9   10    4      10/3   20/3   10     20     10     30     20/3
+    Output
+    sinr matrix with threshold
+    '''
+    sinr_matrix_with_threshold = sinr_matrix / (bs_assignment.sum(axis = 0) + 1e-8)
+    # sinr_matrix_with_threshold = sinr_matrix.div(bs_assignment.sum(),index=sinr_matrix.columns)
+
+    return sinr_matrix_with_threshold
+
 
 # def getInterf(sinr_matrix):
     

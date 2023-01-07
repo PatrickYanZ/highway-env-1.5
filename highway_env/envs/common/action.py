@@ -8,7 +8,7 @@ from highway_env import utils
 from highway_env.utils import Vector
 from highway_env.vehicle.dynamics import BicycleVehicle
 from highway_env.vehicle.kinematics import Vehicle
-from highway_env.vehicle.controller import MDPVehicle
+from highway_env.vehicle.controller import MDPVehicle, MyMDPVehicle
 
 if TYPE_CHECKING:
     from highway_env.envs.common.abstract import AbstractEnv
@@ -227,6 +227,7 @@ class DiscreteMetaAction(ActionType):
     def act(self, action: int) -> None:
         self.controlled_vehicle.act(self.actions[action])
 
+# here
 class DiscreteDualObjectMetaAction(ActionType):
 
     """
@@ -295,7 +296,8 @@ class DiscreteDualObjectMetaAction(ActionType):
         super().__init__(env)
         self.longitudinal = longitudinal
         self.lateral = lateral
-        self.target_speeds = np.array(target_speeds) if target_speeds is not None else MDPVehicle.DEFAULT_TARGET_SPEEDS
+        self.vehicle_type = MyMDPVehicle
+        self.target_speeds = np.array(target_speeds) if target_speeds is not None else self.vehicle_type.DEFAULT_TARGET_SPEEDS
         self.actions = self.ACTIONS_ALL if longitudinal and lateral \
             else self.ACTIONS_LONGI if longitudinal \
             else self.ACTIONS_LAT if lateral \
@@ -310,9 +312,10 @@ class DiscreteDualObjectMetaAction(ActionType):
 
     @property
     def vehicle_class(self) -> Callable:
-        return functools.partial(MDPVehicle, target_speeds=self.target_speeds)
+        return functools.partial(self.vehicle_type, target_speeds=self.target_speeds)
 
     def act(self, action: int) -> None:
+        # 建议action用二元组表示(神经网络的输出为2个元素): [交通动作, 通信动作]. 尚未实现
         self.controlled_vehicle.act(self.actions[action])#self.controlled_vehicle.act(self.actions[action][0])
 
 
