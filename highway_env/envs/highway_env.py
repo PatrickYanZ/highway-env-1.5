@@ -608,7 +608,7 @@ class HighwayEnvBS(HighwayEnvFast):
 
         tran_reward = sum(self.config.get(name, 0) * reward for name, reward in tranData.items())
         tele_reward = sum(self.config.get(name, 0) * reward for name, reward in teleData.items()) 
-
+        tran_reward *= rewards['on_road_reward']
         return {
             "tran_reward": float(tran_reward),
             "tele_reward": float(tele_reward),
