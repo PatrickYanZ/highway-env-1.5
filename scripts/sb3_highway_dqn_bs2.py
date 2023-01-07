@@ -60,7 +60,7 @@ class TensorboardCallback(BaseCallback):
 
         # ho_reward = np.mean(self.ho_rewards)
         self.logger.record('rollout/ho_reward', self.ho_reward[0])
-        self.ho_reward = 0
+        self.ho_reward = 1e-9
         # self.ho_rewards = ho_reward
         return True
 
