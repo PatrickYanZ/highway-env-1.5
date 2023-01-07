@@ -588,7 +588,7 @@ class HighwayEnvBS(HighwayEnvFast):
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "on_road_reward": float(vehicle.on_road),
             "tele_reward": float(result_rf), # / 10e7
-            "ho_reward": float(reward_ho), #* 10
+            "ho_reward": min(float(reward_ho),1) #* 10
             # "thz_reward": float(max_rate_thz)
             # "rf_reward": float(1/rf_sinr_specific_vehicle)
         }
