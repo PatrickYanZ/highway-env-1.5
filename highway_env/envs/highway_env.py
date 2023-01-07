@@ -488,6 +488,7 @@ class HighwayEnvBS(HighwayEnvFast):
             sum(vehicle.crashed for vehicle in self.road.vehicles if vehicle not in self.controlled_vehicles)
 
         info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['tele_reward'] for vehicle in self.controlled_vehicles)
+        info['agents_ho_rewards'] = tuple(self._agent_rewards(action, vehicle)['ho_reward'] for vehicle in self.controlled_vehicles)
         info['agents_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles)
         # info['agents_tr_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) to be implemented
         info['agents_collided'] = tuple(self._agent_is_terminal(vehicle) for vehicle in self.controlled_vehicles)
