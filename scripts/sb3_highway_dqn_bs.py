@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     # Train the model
     if TRAIN:
-        model.learn(total_timesteps=int(2e2),callback='TelecomTransportCallback')#2e4
+        model.learn(total_timesteps=int(2e2))#2e4
         model.save("highway_dqn/model/bs")
         del model
 
