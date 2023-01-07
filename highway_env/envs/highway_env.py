@@ -297,9 +297,9 @@ class HighwayEnvBS(HighwayEnvFast):
             'thz_bs_count': 20,  #100
             'rf_bs_max_connections': 10,  # 最大连接数量
             'thz_bs_max_connections': 5,
-            "tele_reward": 1,
-            "dr_reward": 0.2,
-            "ho_reward": -0.2,
+            "tele_reward": 1/10e5,
+            # "dr_reward": 0.2,
+            "ho_reward": -100,
             "normalize_reward": True,
             "other_vehicles_type": "highway_env.vehicle.behavior.IDMVehicleWithTelecom",
             "lanes_count": 4,
@@ -543,12 +543,13 @@ class HighwayEnvBS(HighwayEnvFast):
         """Per-agent reward signal."""
         rewards = self._agent_rewards(action, vehicle)
         reward = sum(self.config.get(name, 0) * reward for name, reward in rewards.items())
-        if self.config["normalize_reward"]:
-            reward = utils.lmap(reward,
-                                [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
-                                [0, 1])
-        reward += rewards['tele_reward']
-        reward += rewards['ho_reward']
+        # if self.config["normalize_reward"]:
+        #     reward = utils.lmap(reward,
+        #                         [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
+        #                         [0, 1])
+
+        # reward += rewards['tele_reward']
+        # reward += rewards['ho_reward']
         reward *= rewards['on_road_reward']
         return reward  #,reward_tr,reward_te
 
@@ -585,8 +586,8 @@ class HighwayEnvBS(HighwayEnvFast):
             "right_lane_reward": lane / max(len(neighbours) - 1, 1),
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "on_road_reward": float(vehicle.on_road),
-            "tele_reward": float(result_rf / 10e7),
-            "ho_reward": float(-reward_ho * 10),
+            "tele_reward": float(result_rf), # / 10e7
+            "ho_reward": float(-reward_ho ), #* 10
             # "thz_reward": float(max_rate_thz)
             # "rf_reward": float(1/rf_sinr_specific_vehicle)
         }

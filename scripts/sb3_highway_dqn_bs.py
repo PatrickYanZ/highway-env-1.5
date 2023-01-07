@@ -7,6 +7,8 @@ from stable_baselines3 import DQN
 
 import highway_env
 # from highway_env.envs.highway_obstacle_env import *
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 TRAIN = True
 
@@ -31,7 +33,7 @@ if __name__ == '__main__':
 
     # Train the model
     if TRAIN:
-        model.learn(total_timesteps=int(2e2))#2e4
+        model.learn(total_timesteps=int(2e2),callback='TelecomTransportCallback')#2e4
         model.save("highway_dqn/model/bs")
         del model
 
