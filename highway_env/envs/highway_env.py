@@ -297,7 +297,7 @@ class HighwayEnvBS(HighwayEnvFast):
             'thz_bs_count': 20,  #100
             'rf_bs_max_connections': 10,  # 最大连接数量
             'thz_bs_max_connections': 5,
-            "tele_reward": 5/10e5,
+            "tele_reward": 5/10e7,
             # "dr_reward": 0.2,
             "ho_reward": -100,
             "normalize_reward": True,
@@ -489,6 +489,10 @@ class HighwayEnvBS(HighwayEnvFast):
 
         info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['tele_reward'] for vehicle in self.controlled_vehicles)
         info['agents_ho_rewards'] = tuple(self._agent_rewards(action, vehicle)["ho_reward"] for vehicle in self.controlled_vehicles)
+
+        info['agents_tran_all_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tran_reward"] for vehicle in self.controlled_vehicles)
+        info['agents_tele_all_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tele_reward"] for vehicle in self.controlled_vehicles)
+
         info['agents_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles)
         # info['agents_tr_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) to be implemented
         info['agents_collided'] = tuple(self._agent_is_terminal(vehicle) for vehicle in self.controlled_vehicles)
@@ -581,7 +585,6 @@ class HighwayEnvBS(HighwayEnvFast):
             result_rf = self.road.get_performance_table()[vid, vehicle.target_current_bs]
         
         reward_ho = vehicle.target_ho / vehicle.position[0]  # assume this is MyMDPVehicle
-        # print('reward_ho++++++++++++++++++++++++++++++++++++', reward_ho)
 
         return {
             "collision_reward": float(vehicle.crashed),
@@ -592,6 +595,23 @@ class HighwayEnvBS(HighwayEnvFast):
             "ho_reward": float(reward_ho) #* 10
             # "thz_reward": float(max_rate_thz)
             # "rf_reward": float(1/rf_sinr_specific_vehicle)
+        }
+    
+    def get_seperate_reward(self, action: int, vehicle: Vehicle) -> float:
+        tranKeys = ["collision_reward","right_lane_reward","high_speed_reward","on_road_reward"]
+        teleKeys = ["tele_reward","ho_reward"]
+        rewards = self._agent_rewards(action, vehicle)
+
+        filterByKey = lambda keys: {x: rewards[x] for x in keys}
+        tranData = filterByKey(tranKeys)
+        teleData = filterByKey(teleKeys)
+
+        tran_reward = sum(self.config.get(name, 0) * reward for name, reward in tranData.items())
+        tele_reward = sum(self.config.get(name, 0) * reward for name, reward in teleData.items()) 
+
+        return {
+            "tran_reward": float(tran_reward),
+            "tele_reward": float(tele_reward),
         }
 
     # not used

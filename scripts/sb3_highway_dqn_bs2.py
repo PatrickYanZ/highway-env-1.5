@@ -16,7 +16,7 @@ class TensorboardCallback(BaseCallback):
     """
     Custom callback for plotting additional values in tensorboard.
     """
-    tele_rewards = []
+    # tele_rewards = []
     # ho_rewards= 1e-9
 
     def __init__(self, verbose=0):
@@ -25,6 +25,12 @@ class TensorboardCallback(BaseCallback):
         ho_reward = 1e-9
         self.tele_rewards = tele_rewards
         self.ho_reward = ho_reward
+
+        tele_total_rewards = []
+        tran_total_rewards = []
+
+        self.tele_total_rewards = tele_total_rewards
+        self.tran_total_rewards = tran_total_rewards
 
 
     def _on_rollout_start(self) -> None:
@@ -41,12 +47,18 @@ class TensorboardCallback(BaseCallback):
         # print(self.locals['infos'],type(self.locals['infos']))
         # idx = self.locals['infos'].index('agents_te_rewards')
         tel_reward = self.locals['infos'][0]['agents_te_rewards']
-        tele_rewards = self.tele_rewards.append(tel_reward)
+        self.tele_rewards.append(tel_reward)
         # print(self.locals['infos'][0])
         self.ho_reward = self.locals['infos'][0]['agents_ho_rewards']
         # ho_rewards = self.tele_rewards.append(ho_reward)
         # print(tel_reward)
-   
+
+        tel_reward_all = self.locals['infos'][0]['agents_tele_all_rewards']
+        self.tele_total_rewards.append(tel_reward_all)
+
+        tran_reward_all = self.locals['infos'][0]['agents_tran_all_rewards']
+        self.tran_total_rewards.append(tran_reward_all)
+
         return True
 
     def _on_rollout_end(self) -> None:
@@ -56,12 +68,24 @@ class TensorboardCallback(BaseCallback):
         tele_reward = np.mean(self.tele_rewards)
         self.logger.record('rollout/tele_reward', tele_reward)
         tele_reward = 0
+        self.tele_reward = 0
         self.tele_rewards = []
 
         # ho_reward = np.mean(self.ho_rewards)
         self.logger.record('rollout/ho_reward', self.ho_reward[0])
         self.ho_reward = 1e-9
         # self.ho_rewards = ho_reward
+
+        tel_reward_all_mean = np.mean(self.tele_total_rewards)
+        tran_reward_all_mean = np.mean(self.tran_total_rewards)
+
+        self.logger.record('rollout/tel_mean', tel_reward_all_mean)
+        self.logger.record('rollout/tran_mean', tran_reward_all_mean)
+
+        self.tele_total_rewards = []
+        self.tran_total_rewards = []
+        
+
         return True
 
 
@@ -75,14 +99,15 @@ if __name__ == '__main__':
     # Create the model
     model = DQN('MlpPolicy', env,
                 policy_kwargs=dict(net_arch=[256, 256]),
-                learning_rate=5e-4,
+                learning_rate=5e-3,
                 buffer_size=15000,
-                learning_starts=200,
-                batch_size=32,
+                learning_starts=400,
+                batch_size=128,
                 gamma=0.8,
                 train_freq=1,
                 gradient_steps=1,
                 target_update_interval=50,
+                exploration_fraction = 0.5,
                 verbose=1,
                 tensorboard_log="highway_dqn/")
 
