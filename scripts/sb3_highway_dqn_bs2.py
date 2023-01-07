@@ -60,7 +60,7 @@ class TensorboardCallback(BaseCallback):
 
         # ho_reward = np.mean(self.ho_rewards)
         self.logger.record('rollout/ho_reward', self.ho_reward[0])
-        self.ho_reward = 1e-9
+        self.ho_reward = 0
         # self.ho_rewards = ho_reward
         return True
 
@@ -88,8 +88,8 @@ if __name__ == '__main__':
 
     # Train the model
     if TRAIN:
-        model.learn(total_timesteps=int(2e2), callback=TensorboardCallback())#2e4
-        model.save("highway_dqn/model/bs")
+        model.learn(total_timesteps=int(5e4), callback=TensorboardCallback())#2e4
+        model.save("highway_dqn/model/bs230107")
         del model
 
     # # Run the trained model and record video

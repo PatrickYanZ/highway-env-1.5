@@ -297,7 +297,7 @@ class HighwayEnvBS(HighwayEnvFast):
             'thz_bs_count': 20,  #100
             'rf_bs_max_connections': 10,  # 最大连接数量
             'thz_bs_max_connections': 5,
-            "tele_reward": 1/10e5,
+            "tele_reward": 1/10e8,
             # "dr_reward": 0.2,
             "ho_reward": -100,
             "normalize_reward": True,
