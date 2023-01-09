@@ -297,9 +297,9 @@ class HighwayEnvBS(HighwayEnvFast):
             'thz_bs_count': 20,  #100
             'rf_bs_max_connections': 10,  # 最大连接数量
             'thz_bs_max_connections': 5,
-            "tele_reward": 5/10e7,
+            "tele_reward": 4.5 / (10 ** 6.5),#3e-6,
             # "dr_reward": 0.2,
-            "ho_reward": -100,
+            "ho_reward": -5,
             "normalize_reward": True,
             "other_vehicles_type": "highway_env.vehicle.behavior.IDMVehicleWithTelecom",
             "lanes_count": 4,
@@ -487,11 +487,11 @@ class HighwayEnvBS(HighwayEnvFast):
         info['other_vehicle_collision'] = \
             sum(vehicle.crashed for vehicle in self.road.vehicles if vehicle not in self.controlled_vehicles)
 
-        info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['tele_reward'] for vehicle in self.controlled_vehicles)
-        info['agents_ho_rewards'] = tuple(self._agent_rewards(action, vehicle)["ho_reward"] for vehicle in self.controlled_vehicles)
+        # info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['tele_reward'] for vehicle in self.controlled_vehicles)
+        info['agents_ho_prob'] = tuple(self.get_ho(action, vehicle)["ho_prob"] for vehicle in self.controlled_vehicles)
 
         info['agents_tran_all_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tran_reward"] for vehicle in self.controlled_vehicles)
-        info['agents_tele_all_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tele_reward"] for vehicle in self.controlled_vehicles)
+        info['agents_tele_all_rewards'] = tuple(self._agent_rewards(action, vehicle)["tele_reward"] for vehicle in self.controlled_vehicles)
 
         info['agents_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles)
         # info['agents_tr_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) to be implemented
@@ -548,14 +548,18 @@ class HighwayEnvBS(HighwayEnvFast):
         """Per-agent reward signal."""
         rewards = self._agent_rewards(action, vehicle)
         reward = sum(self.config.get(name, 0) * reward for name, reward in rewards.items())
-        # if self.config["normalize_reward"]:
-        #     reward = utils.lmap(reward,
-        #                         [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
-        #                         [0, 1])
-
+        # for name, reward in rewards.items(): #debug
+        #     print(name,'coefficient is',self.config.get(name, 0) , self.config.get(name, 0) * reward,'\n') 
+        # print('reward before nomralize', reward)
+        if self.config["normalize_reward"]:
+            reward = utils.lmap(reward,
+                                [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
+                                [0, 1])
+        # print('reward after nomralize', reward)
         # reward += rewards['tele_reward']
         # reward += rewards['ho_reward']
         reward *= rewards['on_road_reward']
+        # print('reward *=', reward)
         return reward  #,reward_tr,reward_te
 
     def _agent_rewards(self, action: int, vehicle: Vehicle) -> Dict[Text, float]:
@@ -583,23 +587,30 @@ class HighwayEnvBS(HighwayEnvFast):
         result_rf = 0
         if vehicle.target_current_bs is not None:
             result_rf = self.road.get_performance_table()[vid, vehicle.target_current_bs]
+            # print('self step is ========================',self.steps,type(self.steps))
+            # print('ho',float(vehicle.target_ho))
+            # print('steps',steps)
+            # print('result_rf',result_rf)
+            result_rf *=  1 - min(1,(vehicle.target_ho/(self.steps)))
+            # result_rf = "{:.2f}".format(result_rf)
+            # print('final result_rf',result_rf)
         
-        reward_ho = vehicle.target_ho / vehicle.position[0]  # assume this is MyMDPVehicle
+        # reward_ho = vehicle.target_ho / vehicle.position[0]  # assume this is MyMDPVehicle
 
         return {
             "collision_reward": float(vehicle.crashed),
             "right_lane_reward": lane / max(len(neighbours) - 1, 1),
             "high_speed_reward": np.clip(scaled_speed, 0, 1),
             "on_road_reward": float(vehicle.on_road),
-            "tele_reward": float(result_rf), # / 10e7
-            "ho_reward": float(reward_ho) #* 10
+            "tele_reward": float(result_rf) # / 10e7
+            # "ho_reward": float(reward_ho) #* 10
             # "thz_reward": float(max_rate_thz)
             # "rf_reward": float(1/rf_sinr_specific_vehicle)
         }
     
     def get_seperate_reward(self, action: int, vehicle: Vehicle) -> float:
         tranKeys = ["collision_reward","right_lane_reward","high_speed_reward","on_road_reward"]
-        teleKeys = ["tele_reward","ho_reward"]
+        teleKeys = ["tele_reward"] #,"ho_reward"
         rewards = self._agent_rewards(action, vehicle)
 
         filterByKey = lambda keys: {x: rewards[x] for x in keys}
@@ -608,10 +619,22 @@ class HighwayEnvBS(HighwayEnvFast):
 
         tran_reward = sum(self.config.get(name, 0) * reward for name, reward in tranData.items())
         tele_reward = sum(self.config.get(name, 0) * reward for name, reward in teleData.items()) 
+        tran_reward = utils.lmap(tran_reward,
+                    [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
+                    [0, 1])
         tran_reward *= rewards['on_road_reward']
         return {
             "tran_reward": float(tran_reward),
             "tele_reward": float(tele_reward),
+        }
+    
+    def get_ho(self, action: int, vehicle: Vehicle) -> float:
+        ho_density = vehicle.target_ho / vehicle.position[0]  # assume this is MyMDPVehicle
+        ho_prob = vehicle.target_ho/(self.steps)
+
+        return {
+            "ho_density": float(ho_density),
+            "ho_prob": float(ho_prob),
         }
 
     # not used
