@@ -298,6 +298,7 @@ class HighwayEnvBS(HighwayEnvFast):
             'rf_bs_max_connections': 10,  # 最大连接数量
             'thz_bs_max_connections': 5,
             "tele_reward": 4.5 / (10 ** 6.5),#3e-6,
+            "tele_reward_threshold": 4.5 * (10 ** 6.5),#3e-6,
             # "dr_reward": 0.2,
             "ho_reward": -5,
             "normalize_reward": True,
@@ -614,7 +615,7 @@ class HighwayEnvBS(HighwayEnvFast):
             if self.steps > 2: # 3
                 result_rf *=  1 - (vehicle.target_ho/(self.steps))
             
-            result_rf = utils.lmap(result_rf,[0, 1e8],[0, 2])
+            result_rf = utils.lmap(result_rf,[0, self.config["tele_reward_threshold"]],[0, 2])#1e8
             # result_rf = "{:.2f}".format(result_rf)
             # print('final result_rf',result_rf)
         
