@@ -334,19 +334,33 @@ class MyMDPVehicle(MDPVehicle):
                  position: List[float],
                  heading: float = 0,
                  speed: float = 0,
+                 max_dd: float = 100,   # 检测距离, 会返回该距离内的基站数量
                  target_lane_index: Optional[LaneIndex] = None,
                  target_speed: Optional[float] = None,
                  target_speeds: Optional[Vector] = None,
                  target_current_bs: Optional[int] = None,
                  target_ho: int = 0,
+                 target_available_rfs: int = 0,
+                 target_available_thzs: int = 0,
                  route: Optional[Route] = None) -> None:
 
         self.target_current_bs = target_current_bs
+        self.max_detection_distance = max_dd
         self.target_ho = target_ho
         self.id = id
+        self.target_available_rfs = target_available_rfs
+        self.target_available_thzs = target_available_thzs
 
         super().__init__(road, position, heading, speed, target_lane_index,
                          target_speed, target_speeds, route)
+    
+    def to_dict(self, origin_vehicle: "Vehicle" = None, observe_intentions: bool = True) -> dict:
+        d = super().to_dict(origin_vehicle, observe_intentions)
+        # rf_cnt, thz_cnt
+        rf_dist, thz_dist = self.road.get_distance(self.id)
+        d['rf_cnt'] = np.sum(rf_dist <= self.max_detection_distance)
+        d['thz_cnt'] = np.sum(thz_dist <= self.max_detection_distance)
+        return d
 
     def act(self, action = None) -> None:
         

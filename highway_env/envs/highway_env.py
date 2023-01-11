@@ -302,9 +302,15 @@ class HighwayEnvBS(HighwayEnvFast):
             "ho_reward": -5,
             "normalize_reward": True,
             "other_vehicles_type": "highway_env.vehicle.behavior.IDMVehicleWithTelecom",
-            "lanes_count": 4,
+            "lanes_count": 3, #4
             "road_start": 0,
             "road_length": 10000,
+                "observation": {
+                    "type": "KinematicsTele",
+                    "features": ["presence", "x", "y", "vx", "vy", 'rf_cnt', 'thz_cnt'],
+                'vehicles_count': 5,
+            },
+            "max_detection_distance": 1000,  # 观测距离
         })
         return conf
 
@@ -368,7 +374,8 @@ class HighwayEnvBS(HighwayEnvFast):
         # lanes = [4 * lane for lane in range(self.config["lanes_count"])]
         for others in other_per_controlled:
             vehicle = Vehicle.create_random(self.road, speed=25, lane_id=self.config["initial_lane_id"], spacing=self.config["ego_spacing"])
-            vehicle = self.action_type.vehicle_class(id, self.road, vehicle.position, vehicle.heading, vehicle.speed)
+            vehicle = self.action_type.vehicle_class(
+                id, self.road, vehicle.position, vehicle.heading, vehicle.speed, max_dd = self.config["max_detection_distance"])
             id += 1
             if self.config['controlled_vehicles']:
                 # vehicle_lane = np.random.choice(lanes)
@@ -386,7 +393,8 @@ class HighwayEnvBS(HighwayEnvFast):
                 self.controlled_vehicles.append(vehicle)
             for _ in range(others):
                 vehicle = Vehicle.create_random(self.road, spacing=1/self.config["vehicles_density"])
-                vehicle = other_vehicles_type(id, self.road, vehicle.position, vehicle.heading, vehicle.speed)
+                vehicle = other_vehicles_type(
+                    id, self.road, vehicle.position, vehicle.heading, vehicle.speed, max_dd = self.config["max_detection_distance"])
                 id += 1
                 vehicle.randomize_behavior()
                 self.road.vehicles.append(vehicle)
@@ -603,8 +611,8 @@ class HighwayEnvBS(HighwayEnvFast):
             # print('ho',float(vehicle.target_ho))
             # print('steps',steps)
             # print('result_rf',result_rf)
-            if self.steps > 3:
-                result_rf *=  1 - min(1,(vehicle.target_ho/(self.steps)))
+            if self.steps > 2: # 3
+                result_rf *=  1 - (vehicle.target_ho/(self.steps))
             
             result_rf = utils.lmap(result_rf,[0, 1e8],[0, 2])
             # result_rf = "{:.2f}".format(result_rf)

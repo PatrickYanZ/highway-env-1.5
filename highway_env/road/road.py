@@ -400,6 +400,8 @@ class BSRoad(Road):
         self.bs_conn = np.zeros(self.rf_bs_count + self.thz_bs_count)
         # 最大连接数量
         self.bs_conn_max = np.array([rf_bs_max_connections] * rf_bs_count + [thz_bs_max_connections] * thz_bs_count)
+        # 各vehicles到基站的距离
+        self.dist = np.zeros(0)
         # 等同于 HighwayEnvBS._create_bs_assignment_table() 中的 total_dr
         self.total_dr = np.zeros(0)
         # 初始化各个基站的位置
@@ -409,15 +411,19 @@ class BSRoad(Road):
         cnt = self.rf_bs_count + self.thz_bs_count
         self.bs_pos[:, 0] = np.random.random(cnt) * length + start
         self.bs_pos[:, 1] = np.random.randint(0, 2, cnt) * StraightLane.DEFAULT_WIDTH * lane
-
+    
     def update(self):
         # vehicles位置更新后, 更新total_dr
         vehicles_pos = np.array([v.position for v in self.vehicles])
-        dist = np.sqrt(((vehicles_pos[:, None, :] - self.bs_pos)**2).sum(axis=-1))
-        rf_dr, _ = rf_sinr_matrix(dist[:, :self.rf_bs_count])
-        thz_dr, _ = thz_sinr_matrix(dist[:, self.rf_bs_count:])
+        self.dist = np.sqrt(((vehicles_pos[:, None, :] - self.bs_pos)**2).sum(axis=-1))
+        rf_dr, _ = rf_sinr_matrix(self.dist[:, :self.rf_bs_count])
+        thz_dr, _ = thz_sinr_matrix(self.dist[:, self.rf_bs_count:])
         self.total_dr = np.c_[rf_dr, thz_dr]
     
+    def get_distance(self, vid):
+        # rf基站, thz基站
+        return self.dist[vid, :self.rf_bs_count], self.dist[vid, self.rf_bs_count:]
+
     def get_conn(self):
         # 返回已连接数量, 等同于 HighwayEnvBS.get_concurrent_user()
         return self.bs_conn
