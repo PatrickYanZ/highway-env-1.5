@@ -110,8 +110,8 @@ if __name__ == '__main__':
 
     # Train the model
     if TRAIN:
-        model.learn(total_timesteps=int(1e5), callback=TensorboardCallback())#2e4
-        model.save("highway_dqn/model/bs230107-6")
+        model.learn(total_timesteps=int(1e5), callback=TensorboardCallback())#2e4 1e5
+        model.save("highway_dqn/model/bs230108-normalize-model")
         del model
 
     # # Run the trained model and record video

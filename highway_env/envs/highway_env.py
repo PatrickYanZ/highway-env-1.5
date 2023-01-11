@@ -50,7 +50,7 @@ class HighwayEnv(AbstractEnv):
             "high_speed_reward": 0.4,  # The reward received when driving at full speed, linearly mapped to zero for
             # lower speeds according to config["reward_speed_range"].
             "lane_change_reward": 0,  # The reward received at each lane change action.
-            "reward_speed_range": [20, 30],
+            "reward_speed_range": [25, 35], #default[20, 30] [30, 40] [20, 30]
             "offroad_terminal": False
         })
         return config
@@ -544,21 +544,33 @@ class HighwayEnvBS(HighwayEnvFast):
             for name in agents_rewards[0].keys()
         }
 
+    # def _agent_reward(self, action: int, vehicle: Vehicle) -> float:
+    #     """Per-agent reward signal."""
+    #     rewards = self._agent_rewards(action, vehicle)
+    #     reward = sum(self.config.get(name, 0) * reward for name, reward in rewards.items())
+    #     # for name, reward in rewards.items(): #debug
+    #     #     print(name,'coefficient is',self.config.get(name, 0) , self.config.get(name, 0) * reward,'\n') 
+    #     # print('reward before nomralize', reward)
+    #     if self.config["normalize_reward"]:
+    #         reward = utils.lmap(reward,
+    #                             [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
+    #                             [0, 1])
+        
+    #     # print('reward after nomralize', reward)
+    #     # reward += rewards['tele_reward']
+    #     # reward += rewards['ho_reward']
+    #     reward *= rewards['on_road_reward']
+    #     # print('reward *=', reward)
+    #     return reward  #,reward_tr,reward_te
+
     def _agent_reward(self, action: int, vehicle: Vehicle) -> float:
         """Per-agent reward signal."""
-        rewards = self._agent_rewards(action, vehicle)
-        reward = sum(self.config.get(name, 0) * reward for name, reward in rewards.items())
-        # for name, reward in rewards.items(): #debug
-        #     print(name,'coefficient is',self.config.get(name, 0) , self.config.get(name, 0) * reward,'\n') 
-        # print('reward before nomralize', reward)
-        if self.config["normalize_reward"]:
-            reward = utils.lmap(reward,
-                                [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
-                                [0, 1])
-        # print('reward after nomralize', reward)
-        # reward += rewards['tele_reward']
-        # reward += rewards['ho_reward']
-        reward *= rewards['on_road_reward']
+
+        tran_reward = self.get_seperate_reward(action, vehicle)["tran_reward"]
+        tele_reward = self._agent_rewards(action, vehicle)["tele_reward"]
+
+        
+        reward = tran_reward + tele_reward
         # print('reward *=', reward)
         return reward  #,reward_tr,reward_te
 
@@ -591,7 +603,10 @@ class HighwayEnvBS(HighwayEnvFast):
             # print('ho',float(vehicle.target_ho))
             # print('steps',steps)
             # print('result_rf',result_rf)
-            result_rf *=  1 - min(1,(vehicle.target_ho/(self.steps)))
+            if self.steps > 3:
+                result_rf *=  1 - min(1,(vehicle.target_ho/(self.steps)))
+            
+            result_rf = utils.lmap(result_rf,[0, 1e8],[0, 2])
             # result_rf = "{:.2f}".format(result_rf)
             # print('final result_rf',result_rf)
         
@@ -610,22 +625,22 @@ class HighwayEnvBS(HighwayEnvFast):
     
     def get_seperate_reward(self, action: int, vehicle: Vehicle) -> float:
         tranKeys = ["collision_reward","right_lane_reward","high_speed_reward","on_road_reward"]
-        teleKeys = ["tele_reward"] #,"ho_reward"
+        # teleKeys = ["tele_reward"] #,"ho_reward"
         rewards = self._agent_rewards(action, vehicle)
 
         filterByKey = lambda keys: {x: rewards[x] for x in keys}
         tranData = filterByKey(tranKeys)
-        teleData = filterByKey(teleKeys)
+        # teleData = filterByKey(teleKeys)
 
         tran_reward = sum(self.config.get(name, 0) * reward for name, reward in tranData.items())
-        tele_reward = sum(self.config.get(name, 0) * reward for name, reward in teleData.items()) 
+        # tele_reward = sum(self.config.get(name, 0) * reward for name, reward in teleData.items()) 
         tran_reward = utils.lmap(tran_reward,
                     [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
                     [0, 1])
         tran_reward *= rewards['on_road_reward']
         return {
             "tran_reward": float(tran_reward),
-            "tele_reward": float(tele_reward),
+            # "tele_reward": float(tele_reward),
         }
     
     def get_ho(self, action: int, vehicle: Vehicle) -> float:
