@@ -14,3 +14,13 @@ register(
     id='highway-bs-v0',
     entry_point='highway_env.envs:HighwayEnvBS',
 )
+
+register(
+    id='highway-mo',
+    entry_point='highway_env.envs:MOHighwayEnv',
+)
+
+register(
+    id='highway-fast-mo',
+    entry_point='highway_env.envs:MOHighwayEnvFast',
+)
