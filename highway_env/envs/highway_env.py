@@ -986,12 +986,12 @@ register(
     entry_point='highway_env.envs:HighwayEnv',
 )
 
-register(
-    id='highway-mo-v0',
-    entry_point='highway_env.envs:MOHighwayEnv',
-)
+# register(
+#     id='highway-mo-v0',
+#     entry_point='highway_env.envs:MOHighwayEnv',
+# )
 
-register(
-    id='highwayfast-mo-v0',
-    entry_point='highway_env.envs:MOHighwayEnvFast',
-)
+# register(
+#     id='highwayfast-mo-v0',
+#     entry_point='highway_env.envs:MOHighwayEnvFast',
+# )
