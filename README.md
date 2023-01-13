@@ -8,7 +8,7 @@ to change the speed ,
 
 i.e. for desire velocity is 20 and range is (15,25), we set as below
 
-* change the `DEFAULT_TARGET_SPEEDS` = np.linspace(15, 25, 3) in `vehicle/controler.py`
+* change the `DEFAULT_TARGET_SPEEDS` = `np.linspace(15, 25, 3)` in `vehicle/controler.py`
 * change the `reward_speed_range` = `[15,25]`  in `env/highway_env.py` 
 * change the `DEFAULT_INITIAL_SPEEDS` = `[18,20]`  in `vehicle/kinematics.py`
 
