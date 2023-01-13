@@ -16,11 +16,11 @@ register(
 )
 
 register(
-    id='highway-mo',
+    id='highway-mo-v0',
     entry_point='highway_env.envs:MOHighwayEnv',
 )
 
 register(
-    id='highwayfast-mo',
+    id='highwayfast-mo-v0',
     entry_point='highway_env.envs:MOHighwayEnvFast',
 )
