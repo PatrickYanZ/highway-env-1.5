@@ -21,6 +21,6 @@ register(
 )
 
 register(
-    id='highway-fast-mo',
+    id='highwayfast-mo',
     entry_point='highway_env.envs:MOHighwayEnvFast',
 )
