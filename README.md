@@ -1,5 +1,17 @@
 # highway-env
 
+## usage
+to change the speed , 
+* change the `DEFAULT_TARGET_SPEEDS` in `vehicle/controler.py`
+* change the `reward_speed_range`  in `env/highway_env.py` 
+* change the `DEFAULT_INITIAL_SPEEDS`   in `vehicle/kinematics.py`, normally is min_reward_velocity +3 to min_reward_velocity +5
+
+i.e. for desire velocity is 20 and range is (15,25), we set as below
+
+* change the `DEFAULT_TARGET_SPEEDS` = np.linspace(15, 25, 3) in `vehicle/controler.py`
+* change the `reward_speed_range` = `[15,25]`  in `env/highway_env.py` 
+* change the `DEFAULT_INITIAL_SPEEDS` = `[18,20]`  in `vehicle/kinematics.py`
+
 [![build](https://github.com/eleurent/highway-env/workflows/build/badge.svg)](https://github.com/eleurent/highway-env/actions?query=workflow%3Abuild)
 [![Documentation Status](https://readthedocs.org/projects/highway-env/badge/?version=latest)](https://highway-env.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://img.shields.io/pypi/dm/highway-env)](https://pypi.org/project/highway-env/)
