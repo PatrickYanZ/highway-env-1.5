@@ -1,8 +1,9 @@
 # highway-env
 
 ## usage
-to change the speed , 
-* change the `DEFAULT_TARGET_SPEEDS` in `vehicle/controler.py`
+
+To change the speed:
+* change the `DEFAULT_TARGET_SPEEDS` in `vehicle/controller.py`
 * change the `reward_speed_range`  in `env/highway_env.py` 
 * change the `DEFAULT_INITIAL_SPEEDS`   in `vehicle/kinematics.py`, normally is min_reward_velocity +3 to min_reward_velocity +5
 

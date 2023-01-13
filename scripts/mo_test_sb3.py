@@ -9,6 +9,7 @@ env = mo_gym.make("minecart-v0")
 obs = env.reset()
 
 # Create the model
+env = mo_gym.LinearReward(env, weight=np.array([0.8, 0.2, 0.2]))
 model = sb3.DQN('MlpPolicy', env)
 # Run DQN agent!
 model.learn(1000)
