@@ -1,5 +1,6 @@
 import numpy as np
 from gym.envs.registration import register
+from gym.spaces import Box
 
 from highway_env import utils
 from highway_env.envs.common.abstract import AbstractEnv
@@ -50,7 +51,7 @@ class HighwayEnv(AbstractEnv):
             "high_speed_reward": 0.4,  # The reward received when driving at full speed, linearly mapped to zero for
             # lower speeds according to config["reward_speed_range"].
             "lane_change_reward": 0,  # The reward received at each lane change action.
-            "reward_speed_range": [25, 35], #default[20, 30] [30, 40] [20, 30]
+            "reward_speed_range": [15, 25], #default[20, 30] [30, 40] [20, 30]
             "offroad_terminal": False
         })
         return config
@@ -926,6 +927,50 @@ result	    -2	1	-1	1	2	3	0	0	2	1
         # print(sys._getframe().f_code.co_name)
         return utils.relative_distance(x1, x2, y1, y2)
 
+class MOHighwayEnv(HighwayEnv):
+    """A multi-objective version of the HighwayEnv environment."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reward_space = Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = super().step(action)
+        rewards = info["rewards"]
+        vec_reward = np.array(
+            [
+                rewards["high_speed_reward"],
+                rewards["right_lane_reward"],
+                -rewards["collision_reward"],
+            ],
+            dtype=np.float32,
+        )
+        vec_reward *= rewards["on_road_reward"]
+        info["original_reward"] = reward
+        return obs, vec_reward, terminated, truncated, info
+
+
+class MOHighwayEnvFast(HighwayEnvFast):
+    """A multi-objective version of the HighwayFastEnv environment."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reward_space = Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = super().step(action)
+        rewards = info["rewards"]
+        vec_reward = np.array(
+            [
+                rewards["high_speed_reward"],
+                rewards["right_lane_reward"],
+                -rewards["collision_reward"],
+            ],
+            dtype=np.float32,
+        )
+        vec_reward *= rewards["on_road_reward"]
+        info["original_reward"] = reward
+        return obs, vec_reward, terminated, truncated, info
 register(
     id='highway-bs-v0',
     entry_point='highway_env.envs:HighwayEnvBS',
@@ -942,6 +987,11 @@ register(
 )
 
 register(
-    id='highway-fast-v0',
-    entry_point='highway_env.envs:HighwayEnvFast',
+    id='highway-mo',
+    entry_point='highway_env.envs:MOHighwayEnv',
+)
+
+register(
+    id='highway-fast-mo',
+    entry_point='highway_env.envs:MOHighwayEnvFast',
 )

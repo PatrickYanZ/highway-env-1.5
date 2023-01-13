@@ -104,7 +104,7 @@ if __name__ == '__main__':
                 train_freq=1,
                 gradient_steps=1,
                 target_update_interval=50,
-                exploration_fraction = 0.5,
+                exploration_fraction = 0.7,
                 verbose=1,
                 tensorboard_log="highway_dqn/")
 
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     if TRAIN:
         # model.learn(total_timesteps=int(3e2), callback=TensorboardCallback())#2e4 1e5
         model.learn(int(4e4), callback=TensorboardCallback())#2e4 1e5
-        model.save("highway_dqn/model/bs230108-normalize-model-test")
+        model.save("highway_dqn/model/bs230108-normalize-model-v1525")
         del model
 
     # # Run the trained model and record video
