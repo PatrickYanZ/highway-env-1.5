@@ -4,6 +4,9 @@ sys.path.append(r'G:\00temp\code\highway-env-1.5')
 import gym
 from gym.wrappers import RecordVideo
 from stable_baselines3 import DQN
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_util import make_vec_env
+
 
 import highway_env
 # from highway_env.envs.highway_obstacle_env import *
@@ -94,26 +97,23 @@ if __name__ == '__main__':
     obs = env.reset()
 
     # Create the model
-    model = DQN('MlpPolicy', env,
-                policy_kwargs=dict(net_arch=[256,256]),#32,
-                learning_rate=5e-2,
-                buffer_size=15000,
-                learning_starts=500,
-                batch_size=512,#512
-                gamma=0.8,
-                train_freq=1,
-                gradient_steps=1,
-                target_update_interval=50,
-                exploration_fraction = 0.7,
-                verbose=1,
-                tensorboard_log="highway_dqn/")
-
-    # Train the model
-    if TRAIN:
-        # model.learn(total_timesteps=int(3e2), callback=TensorboardCallback())#2e4 1e5
-        model.learn(int(4e4), callback=TensorboardCallback())#2e4 1e5
-        model.save("highway_dqn/model/bs230108-normalize-model-v1020")
-        del model
+    env = make_vec_env("highway-bs-v0", n_envs=2)
+    # model = PPO("MlpPolicy", env, verbose=1,tensorboard_log="./highway_ppo/")
+    model = PPO('MlpPolicy', env,
+            policy_kwargs=dict(net_arch=[32,32]),#32,
+            learning_rate=5e-2,
+            # buffer_size=15000,
+            # learning_starts=500,
+            batch_size=512,#512
+            gamma=0.8,
+            # train_freq=1,
+            # gradient_steps=1,
+            # target_update_interval=50,
+            # exploration_fraction = 0.7,
+            verbose=1,
+            tensorboard_log="highway_ppo/")
+    model.learn(total_timesteps=4e4, callback=TensorboardCallback(),tb_log_name="first_run") #2e4
+    model.save("ppo_highway-bs-v0-15-25")
 
     # # Run the trained model and record video
     # model = DQN.load("highway_dqn/model/bs", env=env)

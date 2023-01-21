@@ -1,11 +1,24 @@
+import gym
+import torch as th
+from stable_baselines3 import PPO
+from torch.distributions import Categorical
+import torch
+import torch.nn as nn
+import numpy as np
+from torch.nn import functional as F
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.vec_env import SubprocVecEnv
+import highway_env
+
 import sys
 sys.path.append(r'G:\00temp\code\highway-env-1.5')
 
-import gym
-from gym.wrappers import RecordVideo
-from stable_baselines3 import DQN
+# import gym
+# from gym.wrappers import RecordVideo
+# from stable_baselines3 import DQN
 
-import highway_env
+# import highway_env
 # from highway_env.envs.highway_obstacle_env import *
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
@@ -86,49 +99,37 @@ class TensorboardCallback(BaseCallback):
         return True
 
 
-TRAIN = True
+# ==================================
+#        Main script
+# ==================================
 
-if __name__ == '__main__':
-    # Create the environment
-    env = gym.make("highway-bs-v0")
-    obs = env.reset()
+if __name__ == "__main__":
+    train = True
+    if train:
+        n_cpu = 6
+        batch_size = 64
+        env = make_vec_env("highway-bs-v0", n_envs=n_cpu, vec_env_cls=SubprocVecEnv)
+        model = PPO("MlpPolicy",
+                    env,
+                    policy_kwargs=dict(net_arch=[dict(pi=[256, 256], vf=[256, 256])]),
+                    n_steps=batch_size * 12 // n_cpu,
+                    batch_size=batch_size,
+                    n_epochs=10,
+                    learning_rate=5e-4,
+                    gamma=0.8,
+                    verbose=2,
+                    tensorboard_log="highway_ppo/")
+        # Train the agent
+        model.learn(total_timesteps=int(5e5), callback=TensorboardCallback())
+        # Save the agent
+        model.save("highway_ppo/model")
 
-    # Create the model
-    model = DQN('MlpPolicy', env,
-                policy_kwargs=dict(net_arch=[256,256]),#32,
-                learning_rate=5e-2,
-                buffer_size=15000,
-                learning_starts=500,
-                batch_size=512,#512
-                gamma=0.8,
-                train_freq=1,
-                gradient_steps=1,
-                target_update_interval=50,
-                exploration_fraction = 0.7,
-                verbose=1,
-                tensorboard_log="highway_dqn/")
-
-    # Train the model
-    if TRAIN:
-        # model.learn(total_timesteps=int(3e2), callback=TensorboardCallback())#2e4 1e5
-        model.learn(int(4e4), callback=TensorboardCallback())#2e4 1e5
-        model.save("highway_dqn/model/bs230108-normalize-model-v1020")
-        del model
-
-    # # Run the trained model and record video
-    # model = DQN.load("highway_dqn/model/bs", env=env)
-    # env = RecordVideo(env, video_folder="racetrack_ppo/videos", episode_trigger=lambda e: True)
-    # env.unwrapped.set_record_video_wrapper(env)
-    # env.configure({"simulation_frequency": 15})  # Higher FPS for rendering
-
-    # for videos in range(10):
-    #     done = False
+    # model = PPO.load("highway_ppo/model")
+    # env = gym.make("highway-fast-v0")
+    # for _ in range(5):
     #     obs = env.reset()
+    #     done = False
     #     while not done:
-    #         # Predict
-    #         action, _states = model.predict(obs, deterministic=True)
-    #         # Get reward
+    #         action, _ = model.predict(obs)
     #         obs, reward, done, info = env.step(action)
-    #         # Render
     #         env.render()
-    # env.close()
