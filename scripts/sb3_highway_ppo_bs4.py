@@ -120,7 +120,7 @@ if __name__ == "__main__":
                     verbose=2,
                     tensorboard_log="highway_ppo/")
         # Train the agent
-        model.learn(total_timesteps=int(5e5), callback=TensorboardCallback())
+        model.learn(total_timesteps=int(4e5), callback=TensorboardCallback())
         # Save the agent
         model.save("highway_ppo/model")
 
