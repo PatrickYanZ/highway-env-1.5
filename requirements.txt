@@ -6,3 +6,5 @@ stable-baselines3==1.5.0
 torch
 tensorboard
 scipy
+gymnasium
+mo_gymnasium

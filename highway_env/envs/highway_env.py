@@ -113,6 +113,30 @@ class HighwayEnv(AbstractEnv):
     def _cost(self, action: int) -> float:
         """The cost signal is the occurrence of collision."""
         return float(self.vehicle.crashed)
+    
+    def _rewards(self, action: Action) -> Dict[Text, float]:
+        neighbours = self.road.network.all_side_lanes(self.vehicle.lane_index)
+        lane = self.vehicle.target_lane_index[2] if isinstance(self.vehicle, ControlledVehicle) \
+            else self.vehicle.lane_index[2]
+        # Use forward speed rather than speed, see https://github.com/eleurent/highway-env/issues/268
+        forward_speed = self.vehicle.speed * np.cos(self.vehicle.heading)
+        scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
+        return {
+            "collision_reward": float(self.vehicle.crashed),
+            "right_lane_reward": lane / max(len(neighbours) - 1, 1),
+            "high_speed_reward": np.clip(scaled_speed, 0, 1),
+            "on_road_reward": float(self.vehicle.on_road)
+        }
+
+    def _is_terminated(self) -> bool:
+        """The episode is over if the ego vehicle crashed or the time is out."""
+        return (self.vehicle.crashed or
+                self.config["offroad_terminal"] and not self.vehicle.on_road or
+                self.time >= self.config["duration"])
+
+    def _is_truncated(self) -> bool:
+        return False
+
 
 
 class HighwayEnvFast(HighwayEnv):
@@ -927,50 +951,6 @@ result	    -2	1	-1	1	2	3	0	0	2	1
         # print(sys._getframe().f_code.co_name)
         return utils.relative_distance(x1, x2, y1, y2)
 
-class MOHighwayEnv(HighwayEnv):
-    """A multi-objective version of the HighwayEnv environment."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.reward_space = Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
-
-    def step(self, action):
-        obs, reward, terminated, truncated, info = super().step(action)
-        rewards = info["rewards"]
-        vec_reward = np.array(
-            [
-                rewards["high_speed_reward"],
-                rewards["right_lane_reward"],
-                -rewards["collision_reward"],
-            ],
-            dtype=np.float32,
-        )
-        vec_reward *= rewards["on_road_reward"]
-        info["original_reward"] = reward
-        return obs, vec_reward, terminated, truncated, info
-
-
-class MOHighwayEnvFast(HighwayEnvFast):
-    """A multi-objective version of the HighwayFastEnv environment."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.reward_space = Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
-
-    def step(self, action):
-        obs, reward, terminated, truncated, info = super().step(action)
-        rewards = info["rewards"]
-        vec_reward = np.array(
-            [
-                rewards["high_speed_reward"],
-                rewards["right_lane_reward"],
-                -rewards["collision_reward"],
-            ],
-            dtype=np.float32,
-        )
-        vec_reward *= rewards["on_road_reward"]
-        info["original_reward"] = reward
-        return obs, vec_reward, terminated, truncated, info
 register(
     id='highway-bs-v0',
     entry_point='highway_env.envs:HighwayEnvBS',
@@ -985,6 +965,51 @@ register(
     id='highway-v0',
     entry_point='highway_env.envs:HighwayEnv',
 )
+
+# class MOHighwayEnv(HighwayEnv):
+#     """A multi-objective version of the HighwayEnv environment."""
+
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.reward_space = Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+
+#     def step(self, action):
+#         obs, reward, terminated, truncated, info = super().step(action)
+#         rewards = info["rewards"]
+#         vec_reward = np.array(
+#             [
+#                 rewards["high_speed_reward"],
+#                 rewards["right_lane_reward"],
+#                 -rewards["collision_reward"],
+#             ],
+#             dtype=np.float32,
+#         )
+#         vec_reward *= rewards["on_road_reward"]
+#         info["original_reward"] = reward
+#         return obs, vec_reward, terminated, truncated, info
+
+
+# class MOHighwayEnvFast(HighwayEnvFast):
+#     """A multi-objective version of the HighwayFastEnv environment."""
+
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.reward_space = Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+
+#     def step(self, action):
+#         obs, reward, terminated, truncated, info = super().step(action)
+#         rewards = info["rewards"]
+#         vec_reward = np.array(
+#             [
+#                 rewards["high_speed_reward"],
+#                 rewards["right_lane_reward"],
+#                 -rewards["collision_reward"],
+#             ],
+#             dtype=np.float32,
+#         )
+#         vec_reward *= rewards["on_road_reward"]
+#         info["original_reward"] = reward
+#         return obs, vec_reward, terminated, truncated, info
 
 # register(
 #     id='highway-mo-v0',

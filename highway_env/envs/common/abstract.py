@@ -1,6 +1,6 @@
 import copy
 import os
-from typing import List, Tuple, Optional, Callable
+from typing import List, Tuple, Optional, Callable, TypeVar, Generic, Union, Dict, Text
 import gym
 from gym import Wrapper
 from gym.wrappers import RecordVideo
@@ -151,6 +151,16 @@ class AbstractEnv(gym.Env):
         :return: the reward
         """
         raise NotImplementedError
+    
+    def _rewards(self, action: Action) -> Dict[Text, float]:
+        """
+        Returns a multi-objective vector of rewards.
+        If implemented, this reward vector should be aggregated into a scalar in _reward().
+        This vector value should only be returned inside the info dict.
+        :param action: the last action performed
+        :return: a dict of {'reward_name': reward_value}
+        """
+        raise NotImplementedError
 
     def _is_terminal(self) -> bool:
         """
@@ -173,8 +183,12 @@ class AbstractEnv(gym.Env):
             "crashed": self.vehicle.crashed,
             "action": action,
         }
+        # try:
+        #     info["cost"] = self._cost(action)
+        # except NotImplementedError:
+        #     pass
         try:
-            info["cost"] = self._cost(action)
+            info["rewards"] = self._rewards(action)
         except NotImplementedError:
             pass
         return info
