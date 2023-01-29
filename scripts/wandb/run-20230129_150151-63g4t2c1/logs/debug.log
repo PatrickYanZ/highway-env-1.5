@@ -1,0 +1,25 @@
+2023-01-29 15:01:51,126 INFO    MainThread:14892 [wandb_setup.py:_flush():68] Configure stats pid to 14892
+2023-01-29 15:01:51,126 INFO    MainThread:14892 [wandb_setup.py:_flush():68] Loading settings from C:\Users\yanzi\.config\wandb\settings
+2023-01-29 15:01:51,126 INFO    MainThread:14892 [wandb_setup.py:_flush():68] Loading settings from I:\Research\221230\v2\highway-env-1.5 (1)\highway-env-1.5\scripts\wandb\settings
+2023-01-29 15:01:51,126 INFO    MainThread:14892 [wandb_setup.py:_flush():68] Loading settings from environment variables: {'_require_service': 'True'}
+2023-01-29 15:01:51,126 INFO    MainThread:14892 [wandb_setup.py:_flush():68] Inferring run settings from compute environment: {'program_relpath': 'scripts\\envelop_minecart.py', 'program': 'I:\\Research\\221230\\v2\\highway-env-1.5 (1)\\highway-env-1.5\\scripts\\envelop_minecart.py'}
+2023-01-29 15:01:51,158 INFO    MainThread:14892 [wandb_init.py:_log_setup():478] Logging user logs to I:\Research\221230\v2\highway-env-1.5 (1)\highway-env-1.5\scripts\wandb\run-20230129_150151-63g4t2c1\logs\debug.log
+2023-01-29 15:01:51,158 INFO    MainThread:14892 [wandb_init.py:_log_setup():479] Logging internal logs to I:\Research\221230\v2\highway-env-1.5 (1)\highway-env-1.5\scripts\wandb\run-20230129_150151-63g4t2c1\logs\debug-internal.log
+2023-01-29 15:01:51,158 INFO    MainThread:14892 [wandb_init.py:init():518] calling init triggers
+2023-01-29 15:01:51,158 INFO    MainThread:14892 [wandb_init.py:init():521] wandb.init called with sweep_config: {}
+config: {'env_id': 'minecart-v0', 'learning_rate': 0.0003, 'initial_epsilon': 1.0, 'epsilon_decay_steps:': 50000, 'batch_size': 64, 'tau': 1, 'clip_grand_norm': 0.1, 'target_net_update_freq': 1000, 'gamma': 0.98, 'use_envelope': True, 'num_sample_w': 4, 'net_arch': [256, 256, 256, 256], 'per': True, 'gradient_updates': 1, 'buffer_size': 2000000, 'initial_homotopy_lambda': 0.0, 'final_homotopy_lambda': 1.0, 'homotopy_decay_steps': 10000, 'learning_starts': 100}
+2023-01-29 15:01:51,158 INFO    MainThread:14892 [wandb_init.py:init():571] starting backend
+2023-01-29 15:01:51,158 INFO    MainThread:14892 [wandb_init.py:init():575] setting up manager
+2023-01-29 15:01:51,597 INFO    MainThread:14892 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=spawn, using: spawn
+2023-01-29 15:01:51,870 INFO    MainThread:14892 [wandb_init.py:init():582] backend started and connected
+2023-01-29 15:01:51,872 INFO    MainThread:14892 [wandb_init.py:init():670] updated telemetry
+2023-01-29 15:01:51,924 INFO    MainThread:14892 [wandb_init.py:init():710] communicating run to backend with 60.0 second timeout
+2023-01-29 15:01:52,159 INFO    MainThread:14892 [wandb_run.py:_on_init():2121] communicating current version
+2023-01-29 15:01:52,221 INFO    MainThread:14892 [wandb_run.py:_on_init():2125] got version response 
+2023-01-29 15:01:52,221 INFO    MainThread:14892 [wandb_init.py:init():758] starting run threads in backend
+2023-01-29 15:02:08,658 INFO    MainThread:14892 [wandb_run.py:_console_start():2101] atexit reg
+2023-01-29 15:02:08,658 INFO    MainThread:14892 [wandb_run.py:_redirect():1959] redirect: SettingsConsole.WRAP_RAW
+2023-01-29 15:02:08,658 INFO    MainThread:14892 [wandb_run.py:_redirect():2024] Wrapping output streams.
+2023-01-29 15:02:08,658 INFO    MainThread:14892 [wandb_run.py:_redirect():2046] Redirects installed.
+2023-01-29 15:02:08,658 INFO    MainThread:14892 [wandb_init.py:init():798] run started, returning control to user process
+2023-01-29 15:02:08,658 INFO    MainThread:14892 [wandb_run.py:_tensorboard_callback():1385] tensorboard callback: /tmp/Envelope - minecart-v0, True

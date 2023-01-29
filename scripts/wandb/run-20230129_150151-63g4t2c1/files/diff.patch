@@ -1,0 +1,33 @@
+diff --git a/scripts/envelop_highway.py b/scripts/envelop_highway.py
+index 5a70382..aefa2fc 100644
+--- a/scripts/envelop_highway.py
++++ b/scripts/envelop_highway.py
+@@ -9,8 +9,8 @@ def main():
+     def make_env():
+         # env = mo_gym.make("minecart-v0")
+         env = mo_gym.make("highway-mofast-v0")
+-        env = MORecordEpisodeStatistics(env, gamma=0.98)
+-        # env = mo_gym.LinearReward(env)
++        # env = MORecordEpisodeStatistics(env, gamma=0.98)
++        env = mo_gym.LinearReward(env)
+         return env
+ 
+     env = make_env()
+diff --git a/setup.py b/setup.py
+index 5d10ac6..eef6247 100644
+--- a/setup.py
++++ b/setup.py
+@@ -5,10 +5,4 @@
+ from setuptools import setup
+ 
+ if __name__ == "__main__":
+-    setup()
+-    
+-    setup(
+-    name="gym_examples",
+-    version="0.0.1",
+-    # install_requires=["gym==0.26.0", "pygame==2.1.0"],
+-    )
+\ No newline at end of file
++    setup()
+\ No newline at end of file

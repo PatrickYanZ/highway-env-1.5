@@ -1,6 +1,6 @@
 import mo_gym
 from mo_gym.utils import MORecordEpisodeStatistics
-from gym import spaces
+
 from morl_baselines.multi_policy.envelope.envelope import Envelope
 
 import highway_env
@@ -8,19 +8,12 @@ import highway_env
 def main():
     def make_env():
         # env = mo_gym.make("minecart-v0")
-        # env = mo_gym.make("highway-mofast-v0")
-        env = mo_gym.make("mo-highway-fast-v0")
-        env = MORecordEpisodeStatistics(env, gamma=0.98)
+        env = mo_gym.make("minecart-v0")
+        # env = MORecordEpisodeStatistics(env, gamma=0.98)
         env = mo_gym.LinearReward(env)
         return env
 
     env = make_env()
-    print('obs space',env.observation_space)
-    print('act space',env.action_space)
-    print('is instance ? ',isinstance(env.action_space, (spaces.Discrete, spaces.MultiBinary)))
-    print('act space shape',env.action_space.shape)
-    # print('act space shape',env.action_space.shape[0])
-    print('reward space',env.reward_space)
     eval_env = make_env()
     # RecordVideo(make_env(), "videos/minecart/", episode_trigger=lambda e: e % 1000 == 0)
 

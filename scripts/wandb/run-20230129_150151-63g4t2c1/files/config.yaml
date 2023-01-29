@@ -1,0 +1,95 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.13.9
+    code_path: code/scripts/envelop_minecart.py
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.9.5
+    start_time: 1675022511.87125
+    t:
+      1:
+      - 1
+      - 2
+      - 3
+      - 55
+      2:
+      - 1
+      - 2
+      - 3
+      - 55
+      3:
+      - 7
+      - 13
+      - 16
+      - 23
+      - 35
+      4: 3.9.5
+      5: 0.13.9
+      8:
+      - 3
+      - 5
+batch_size:
+  desc: null
+  value: 64
+buffer_size:
+  desc: null
+  value: 2000000
+clip_grand_norm:
+  desc: null
+  value: 0.1
+env_id:
+  desc: null
+  value: minecart-v0
+'epsilon_decay_steps:':
+  desc: null
+  value: 50000
+final_homotopy_lambda:
+  desc: null
+  value: 1.0
+gamma:
+  desc: null
+  value: 0.98
+gradient_updates:
+  desc: null
+  value: 1
+homotopy_decay_steps:
+  desc: null
+  value: 10000
+initial_epsilon:
+  desc: null
+  value: 1.0
+initial_homotopy_lambda:
+  desc: null
+  value: 0.0
+learning_rate:
+  desc: null
+  value: 0.0003
+learning_starts:
+  desc: null
+  value: 100
+net_arch:
+  desc: null
+  value:
+  - 256
+  - 256
+  - 256
+  - 256
+num_sample_w:
+  desc: null
+  value: 4
+per:
+  desc: null
+  value: true
+target_net_update_freq:
+  desc: null
+  value: 1000
+tau:
+  desc: null
+  value: 1
+use_envelope:
+  desc: null
+  value: true

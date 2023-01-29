@@ -1,6 +1,7 @@
-import mo_gym
-from mo_gym.utils import MORecordEpisodeStatistics
+import mo_gymnasium as mo_gym
+from mo_gymnasium.utils import MORecordEpisodeStatistics
 from gym import spaces
+# from mo_gym import spaces
 from morl_baselines.multi_policy.envelope.envelope import Envelope
 
 import highway_env
@@ -30,7 +31,7 @@ def main():
         learning_rate=3e-4,
         gamma=0.98,
         batch_size=64,
-        net_arch=[256, 256, 256, 256],
+        net_arch=[256, 256],#, 256, 256
         buffer_size=int(2e6),
         initial_epsilon=1.0,
         final_epsilon=0.05,

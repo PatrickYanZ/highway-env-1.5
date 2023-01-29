@@ -1,0 +1,42 @@
+{
+    "os": "Windows-10-10.0.22000-SP0",
+    "python": "3.9.5",
+    "heartbeatAt": "2023-01-29T20:01:52.355185",
+    "startedAt": "2023-01-29T20:01:51.126980",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "I:\\Research\\221230\\v2\\highway-env-1.5 (1)\\highway-env-1.5\\scripts\\envelop_minecart.py",
+    "codePath": "scripts\\envelop_minecart.py",
+    "git": {
+        "remote": "https://github.com/PatrickYanZ/highway-env-1.5.git",
+        "commit": "2d8cdcfb758cdb8495466823f3715be2fde15de6"
+    },
+    "email": "37357319+PatrickYanZ@users.noreply.github.com",
+    "root": "I:/Research/221230/v2/highway-env-1.5 (1)/highway-env-1.5",
+    "host": "DESKTOP-6GE7P9A",
+    "username": "yanzi",
+    "executable": "D:\\Users\\yanzi\\miniconda3\\python.exe",
+    "cpu_count": 6,
+    "cpu_count_logical": 12,
+    "cpu_freq": {
+        "current": 3192.0,
+        "min": 0.0,
+        "max": 3192.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3192.0,
+            "min": 0.0,
+            "max": 3192.0
+        }
+    ],
+    "disk": {
+        "total": 360.77050399780273,
+        "used": 284.15180587768555
+    },
+    "memory": {
+        "total": 15.870159149169922
+    }
+}
