@@ -502,7 +502,6 @@ class HighwayEnvBS(HighwayEnvFast):
 
         info['agents_tran_all_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tran_reward"] for vehicle in self.controlled_vehicles)
         info['agents_tele_all_rewards'] = tuple(self._agent_rewards(action, vehicle)["tele_reward"] for vehicle in self.controlled_vehicles)
-
         info['agents_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles)
         # info['agents_tr_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) to be implemented
         info['agents_collided'] = tuple(self._agent_is_terminal(vehicle) for vehicle in self.controlled_vehicles)
@@ -650,7 +649,7 @@ class HighwayEnvBS(HighwayEnvFast):
         tran_reward *= rewards['on_road_reward']
         return {
             "tran_reward": float(tran_reward),
-            # "tele_reward": float(tele_reward),
+            "tele_reward": float(tele_reward),
         }
     
     def get_ho(self, action: int, vehicle: Vehicle) -> float:
