@@ -316,8 +316,8 @@ class HighwayEnvBS(HighwayEnvFast):
         })
         return conf
     
-    tele_reward_list = [1e-9]
-    tran_reward_list = [1e-9]
+    tele_reward_list = []
+    tran_reward_list = []
 
     def _reset(self) -> None:
         # super()._reset()
@@ -326,8 +326,8 @@ class HighwayEnvBS(HighwayEnvFast):
         self._create_vehicles()
         self.road.update()
         # self._create_bs_assignment_table()
-        self.tele_reward_list = [1e-9]
-        self.tran_reward_list = [1e-9]
+        self.tele_reward_list = []
+        self.tran_reward_list = []
 
     def _create_road(self) -> None:
         """Create a road composed of straight adjacent lanes."""
