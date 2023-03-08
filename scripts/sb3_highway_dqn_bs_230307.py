@@ -62,12 +62,23 @@ class TensorboardCallback(BaseCallback):
 
 
 TRAIN = True
+
+rpath = "dqn_test/dqn_"+datetime.now().strftime('%Y%m%d_%H%M%S')+"/"
+# tmp_path = "/highway_dqn/sb3_log/"+rpath
+#tmp_path = r"I:\Research\tcom paper\highway-env-1.5\scripts\dqn_aaa" 
+# set up logger
+new_logger = configure(rpath, ["stdout", "csv", "tensorboard"])
+
+'''
+this will not work since OSError: [Errno 30] Read-only file system: '/highway_dqn'
 # tmp_path = "/tmp/sb3_log/"
-rpath = "dqn_"+datetime.now().strftime('%Y%m%d_%H%M%S')+"/"
+rpath = "dqn_test/dqn_"+datetime.now().strftime('%Y%m%d_%H%M%S')+"/"
 tmp_path = "/highway_dqn/sb3_log/"+rpath
 #tmp_path = r"I:\Research\tcom paper\highway-env-1.5\scripts\dqn_aaa" 
 # set up logger
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
+'''
+
 
 if __name__ == '__main__':
     # Create the environment
