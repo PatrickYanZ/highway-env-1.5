@@ -25,11 +25,6 @@ class TensorboardCallback(BaseCallback):
         # self.tele_rewards = tele_rewards
         self.ho_prob = ho_prob
 
-        tele_total_rewards = []
-        tran_total_rewards = []
-
-        self.tele_total_rewards = tele_total_rewards
-        self.tran_total_rewards = tran_total_rewards
 
 
     def _on_rollout_start(self) -> None:
@@ -43,32 +38,33 @@ class TensorboardCallback(BaseCallback):
 
     def _on_step(self) -> bool: 
 
-        tel_reward_all = self.locals['infos'][0]['agents_tele_all_rewards']
-        self.tele_total_rewards.append(tel_reward_all)
-
-        tran_reward_all = self.locals['infos'][0]['agents_tran_all_rewards']
-        self.tran_total_rewards.append(tran_reward_all)
-
         return True
 
     def _on_rollout_end(self) -> None:
         """
         This event is triggered before updating the policy.
         """
+        # print('info\n',self.locals['infos'][0])
 
-        self.ho_prob = self.locals['infos'][0]['agents_ho_prob']
-        self.logger.record('rollout/ho_prob', self.ho_prob[0])
+        # self.ho_prob = self.locals['infos'][0]['agents_ho_prob']
+        self.logger.record('rollout/ho_prob', self.locals['infos'][0]['agents_ho_prob'][0])
         # self.ho_prob = 1e-9
 
-        tel_reward_all_mean = np.mean(self.tele_total_rewards)
-        tran_reward_all_mean = np.mean(self.tran_total_rewards)
+        # tel_reward_all_mean = np.mean(self.tele_total_rewards)
+        # tran_reward_all_mean = np.mean(self.tran_total_rewards)
 
-        self.logger.record('rollout/tel_mean', tel_reward_all_mean)
-        self.logger.record('rollout/tran_mean', tran_reward_all_mean)
-
-        self.tele_total_rewards = []
-        self.tran_total_rewards = []
-        
+        self.logger.record('rollout/tel_mean', self.locals['infos'][0]['agents_tele_average_rewards'][0])
+        self.logger.record('rollout/tran_mean', self.locals['infos'][0]['agents_tran_average_rewards'][0])
+        self.logger.record('rollout/tel_total', self.locals['infos'][0]['agents_tele_total_rewards'][0])
+        self.logger.record('rollout/tran_total', self.locals['infos'][0]['agents_tran_total_rewards'][0])
+        self.logger.record('rollout/steps', self.locals['infos'][0]['agents_self_steps'][0])
+        self.logger.record('rollout/distance_travelled', self.locals['infos'][0]['distance_travelled'][0])
+        survive = 0
+        if not self.locals['infos'][0]['crashed']:
+            survive = 1
+        else:
+            survive = 0
+        self.logger.record('rollout/agents_survived', survive)
 
         return True
 
@@ -105,6 +101,6 @@ if __name__ == '__main__':
     if TRAIN:
         # model.learn(total_timesteps=int(3e2), callback=TensorboardCallback())#2e4 1e5
         model.set_logger(new_logger)
-        model.learn(int(1e5), callback=TensorboardCallback())#2e4 1e5
+        model.learn(int(5e2), callback=TensorboardCallback())#2e4 1e5
         model.save("highway_dqn/model/bs230108-normalize-model-test")
         # del model
