@@ -95,8 +95,8 @@ if __name__ == '__main__':
 
     # Create the model
     model = DQN('MlpPolicy', env,
-                policy_kwargs=dict(net_arch=[256,256]),#32,
-                learning_rate=5e-2,
+                policy_kwargs=dict(net_arch=[64,64]),#32,
+                learning_rate=8e-2,
                 buffer_size=15000,
                 learning_starts=500,
                 batch_size=512,#512
