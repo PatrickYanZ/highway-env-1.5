@@ -177,6 +177,10 @@ class AbstractEnv(gym.Env):
             info["cost"] = self._cost(action)
         except NotImplementedError:
             pass
+        try:
+            info["rewards"] = self._rewards(action)
+        except NotImplementedError:
+            pass
         return info
 
     def _cost(self, action: Action) -> float:
