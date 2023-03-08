@@ -315,6 +315,9 @@ class HighwayEnvBS(HighwayEnvFast):
             "max_detection_distance": 1000,  # 观测距离
         })
         return conf
+    
+    tele_reward_list = [1e-9]
+    tran_reward_list = [1e-9]
 
     def _reset(self) -> None:
         # super()._reset()
@@ -323,6 +326,8 @@ class HighwayEnvBS(HighwayEnvFast):
         self._create_vehicles()
         self.road.update()
         # self._create_bs_assignment_table()
+        self.tele_reward_list = [1e-9]
+        self.tran_reward_list = [1e-9]
 
     def _create_road(self) -> None:
         """Create a road composed of straight adjacent lanes."""
@@ -500,9 +505,13 @@ class HighwayEnvBS(HighwayEnvFast):
         # info['agents_te_rewards'] = tuple(self._agent_rewards(action, vehicle)['tele_reward'] for vehicle in self.controlled_vehicles)
         info['agents_ho_prob'] = tuple(self.get_ho(action, vehicle)["ho_prob"] for vehicle in self.controlled_vehicles)
 
-        info['agents_tran_all_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tran_reward"] for vehicle in self.controlled_vehicles)
-        info['agents_tele_all_rewards'] = tuple(self._agent_rewards(action, vehicle)["tele_reward"] for vehicle in self.controlled_vehicles)
-
+        info['agents_tran_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tran_reward"] for vehicle in self.controlled_vehicles)
+        info['agents_tele_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tele_reward"] for vehicle in self.controlled_vehicles)
+        info['agents_tran_average_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tran_reward_mean"] for vehicle in self.controlled_vehicles)
+        info['agents_tele_average_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tele_reward_mean"] for vehicle in self.controlled_vehicles)
+        info['agents_tran_total_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tran_reward_total"] for vehicle in self.controlled_vehicles)
+        info['agents_tele_total_rewards'] = tuple(self.get_seperate_reward(action, vehicle)["tele_reward_total"] for vehicle in self.controlled_vehicles)
+        info['agents_self_steps'] = tuple(self.steps for vehicle in self.controlled_vehicles)
         info['agents_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles)
         # info['agents_tr_rewards'] = tuple(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) to be implemented
         info['agents_collided'] = tuple(self._agent_is_terminal(vehicle) for vehicle in self.controlled_vehicles)
@@ -541,6 +550,16 @@ class HighwayEnvBS(HighwayEnvFast):
         #        / len(self.controlled_vehicles)
         # sum_te_reward = sum(self._agent_reward(action, vehicle)[2] for vehicle in self.controlled_vehicles) \
         #        / len(self.controlled_vehicles)
+
+
+        for vehicle in self.controlled_vehicles:
+            tran_reward = self.get_seperate_reward(action, vehicle)["tran_reward"]
+            tele_reward = self.get_seperate_reward(action, vehicle)["tele_reward"]
+            self.tran_reward_list.append(tran_reward)
+            self.tele_reward_list.append(tele_reward)
+            # print('self.tran_reward_list\n',self.tran_reward_list)
+            # print('self.tele_reward_list\n',self.tele_reward_list)
+
         return sum(self._agent_reward(action, vehicle) for vehicle in self.controlled_vehicles) \
                / len(self.controlled_vehicles)
         # return sum_total_reward #,sum_tr_reward,sum_te_reward
@@ -579,7 +598,12 @@ class HighwayEnvBS(HighwayEnvFast):
         tran_reward = self.get_seperate_reward(action, vehicle)["tran_reward"]
         tele_reward = self._agent_rewards(action, vehicle)["tele_reward"]
 
-        
+        # for vehicle in self.controlled_vehicles:
+        #     self.tran_reward_list.append(tran_reward)
+        #     self.tele_reward_list.append(tele_reward)
+        #     print('self.tran_reward_list\n',self.tran_reward_list)
+        #     print('self.tele_reward_list\n',self.tele_reward_list)
+
         reward = tran_reward + tele_reward
         # print('reward *=', reward)
         return reward  #,reward_tr,reward_te
@@ -648,9 +672,25 @@ class HighwayEnvBS(HighwayEnvFast):
                     [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
                     [0, 1])
         tran_reward *= rewards['on_road_reward']
+        tele_reward = self._agent_rewards(action, vehicle)["tele_reward"]
+
+        if len(self.tran_reward_list) > 0:
+            mean_tran = float(np.mean(self.tran_reward_list))
+        else:
+            mean_tran= 0.0  # or any default value you want to use
+
+        if len(self.tele_reward_list) > 0:
+            mean_tele = float(np.mean(self.tele_reward_list))
+        else:
+            mean_tele = 0.0  # or any default value you want to use
+
         return {
             "tran_reward": float(tran_reward),
-            # "tele_reward": float(tele_reward),
+            "tele_reward": float(tele_reward),
+            "tran_reward_mean": float(mean_tran),
+            "tele_reward_mean": float(mean_tele),
+            "tran_reward_total": float(np.sum(self.tran_reward_list)),
+            "tele_reward_total": float(np.sum(self.tele_reward_list)),
         }
     
     def get_ho(self, action: int, vehicle: Vehicle) -> float:
