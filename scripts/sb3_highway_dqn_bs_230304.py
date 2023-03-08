@@ -76,8 +76,8 @@ class TensorboardCallback(BaseCallback):
 TRAIN = True
 # tmp_path = "/tmp/sb3_log/"
 rpath = "dqn_"+datetime.now().strftime('%Y%m%d_%H%M%S')+"/"
-#tmp_path = "/highway_dqn/"+rpath
-tmp_path = r"I:\Research\tcom paper\highway-env-1.5\scripts\dqn_aaa" 
+tmp_path = "/highway_dqn/sb3_log/"+rpath
+#tmp_path = r"I:\Research\tcom paper\highway-env-1.5\scripts\dqn_aaa" 
 # set up logger
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 
