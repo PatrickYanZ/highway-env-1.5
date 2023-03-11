@@ -1,0 +1,2 @@
+rollout/tran_total,rollout/steps,rollout/agents_survived,rollout/distance_travelled,rollout/ep_rew_mean,rollout/ep_len_mean,rollout/ho_prob,time/fps,time/time_elapsed,time/total_timesteps,rollout/tel_total,rollout/tran_mean,rollout/tel_mean,time/iterations
+0.7333333333333334,1,1,50.0,17.959724157894733,7.726315789473684,0.0,146,5,768,0.0012328689914755117,0.7333333333333334,0.0012328689914755117,1
